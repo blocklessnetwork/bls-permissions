@@ -65,3 +65,7 @@ pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: Pro
     *MAYBE_BEFORE_PROMPT_CALLBACK.lock() = Some(before_callback);
     *MAYBE_AFTER_PROMPT_CALLBACK.lock() = Some(after_callback);
 }
+
+pub fn set_prompter(prompter: Box<dyn PermissionPrompter>) {
+    *PERMISSION_PROMPTER.lock() = prompter;
+}

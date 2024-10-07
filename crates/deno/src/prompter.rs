@@ -1,9 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use deno_core::error::AnyError;
-use deno_core::parking_lot::Mutex;
 use deno_terminal::colors;
-use once_cell::sync::Lazy;
 use std::fmt::Write;
 use std::io::BufRead;
 use std::io::IsTerminal;
@@ -12,6 +10,12 @@ use std::io::StdinLock;
 use std::io::Write as IoWrite;
 
 use crate::is_standalone;
+pub use bls_permissions::PromptResponse;
+pub use bls_permissions::PermissionPrompter;
+pub use bls_permissions::PromptCallback;
+use bls_permissions::permission_prompt as bls_permission_prompt;
+use bls_permissions::set_prompt_callbacks as bls_set_prompt_callbacks;
+
 
 /// Helper function to make control characters visible so users can see the underlying filename.
 fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
@@ -36,55 +40,17 @@ pub const PERMISSION_EMOJI: &str = "⚠️";
 // 10kB of permission prompting should be enough for anyone
 const MAX_PERMISSION_PROMPT_LENGTH: usize = 10 * 1024;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum PromptResponse {
-    Allow,
-    Deny,
-    AllowAll,
-}
-
-static PERMISSION_PROMPTER: Lazy<Mutex<Box<dyn PermissionPrompter>>> =
-    Lazy::new(|| Mutex::new(Box::new(TtyPrompter)));
-
-static MAYBE_BEFORE_PROMPT_CALLBACK: Lazy<Mutex<Option<PromptCallback>>> =
-    Lazy::new(|| Mutex::new(None));
-
-static MAYBE_AFTER_PROMPT_CALLBACK: Lazy<Mutex<Option<PromptCallback>>> =
-    Lazy::new(|| Mutex::new(None));
-
 pub fn permission_prompt(
     message: &str,
     flag: &str,
     api_name: Option<&str>,
     is_unary: bool,
 ) -> PromptResponse {
-    if let Some(before_callback) = MAYBE_BEFORE_PROMPT_CALLBACK.lock().as_mut() {
-        before_callback();
-    }
-    let r = PERMISSION_PROMPTER
-        .lock()
-        .prompt(message, flag, api_name, is_unary);
-    if let Some(after_callback) = MAYBE_AFTER_PROMPT_CALLBACK.lock().as_mut() {
-        after_callback();
-    }
-    r
+    bls_permission_prompt(message, flag, api_name, is_unary)
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
-    *MAYBE_BEFORE_PROMPT_CALLBACK.lock() = Some(before_callback);
-    *MAYBE_AFTER_PROMPT_CALLBACK.lock() = Some(after_callback);
-}
-
-pub type PromptCallback = Box<dyn FnMut() + Send + Sync>;
-
-pub trait PermissionPrompter: Send + Sync {
-    fn prompt(
-        &mut self,
-        message: &str,
-        name: &str,
-        api_name: Option<&str>,
-        is_unary: bool,
-    ) -> PromptResponse;
+    bls_set_prompt_callbacks(before_callback, after_callback);
 }
 
 pub struct TtyPrompter;
@@ -417,8 +383,11 @@ impl PermissionPrompter for TtyPrompter {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use deno_core::parking_lot::Mutex;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering;
+    use once_cell::sync::Lazy;
+    use bls_permissions::set_prompter as bls_set_prompter;
 
     pub struct TestPrompter;
 
@@ -452,6 +421,6 @@ pub mod tests {
     }
 
     pub fn set_prompter(prompter: Box<dyn PermissionPrompter>) {
-        *PERMISSION_PROMPTER.lock() = prompter;
+        bls_set_prompter(prompter);
     }
 }

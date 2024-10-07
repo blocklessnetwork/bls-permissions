@@ -28,8 +28,7 @@ use error::type_error;
 use error::uri_error;
 
 mod prompter;
-use prompter::permission_prompt;
-use prompter::PromptResponse;
+pub use prompter::*;
 
 pub type AnyError = anyhow::Error;
 
