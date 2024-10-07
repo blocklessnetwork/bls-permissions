@@ -8,6 +8,7 @@ use std::io::IsTerminal;
 use std::io::StderrLock;
 use std::io::StdinLock;
 use std::io::Write as IoWrite;
+use std::sync::Once;
 
 use crate::is_standalone;
 pub use bls_permissions::PromptResponse;
@@ -15,6 +16,7 @@ pub use bls_permissions::PermissionPrompter;
 pub use bls_permissions::PromptCallback;
 use bls_permissions::permission_prompt as bls_permission_prompt;
 use bls_permissions::set_prompt_callbacks as bls_set_prompt_callbacks;
+use bls_permissions::set_prompter as bls_set_prompter;
 
 
 /// Helper function to make control characters visible so users can see the underlying filename.
@@ -46,10 +48,15 @@ pub fn permission_prompt(
     api_name: Option<&str>,
     is_unary: bool,
 ) -> PromptResponse {
+    static TTYPROMPTER: Once = Once::new();
+    TTYPROMPTER.call_once(|| {
+        bls_set_prompter(Box::new(TtyPrompter));
+    });
     bls_permission_prompt(message, flag, api_name, is_unary)
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
+    
     bls_set_prompt_callbacks(before_callback, after_callback);
 }
 
@@ -387,7 +394,6 @@ pub mod tests {
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering;
     use once_cell::sync::Lazy;
-    use bls_permissions::set_prompter as bls_set_prompter;
 
     pub struct TestPrompter;
 
