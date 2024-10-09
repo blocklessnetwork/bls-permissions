@@ -11,13 +11,12 @@ use std::io::Write as IoWrite;
 use std::sync::Once;
 
 use crate::is_standalone;
-pub use bls_permissions::PromptResponse;
+use bls_permissions::bls_permission_prompt;
+use bls_permissions::bls_set_prompt_callbacks;
+use bls_permissions::bls_set_prompter;
 pub use bls_permissions::PermissionPrompter;
 pub use bls_permissions::PromptCallback;
-use bls_permissions::permission_prompt as bls_permission_prompt;
-use bls_permissions::set_prompt_callbacks as bls_set_prompt_callbacks;
-use bls_permissions::set_prompter as bls_set_prompter;
-
+pub use bls_permissions::PromptResponse;
 
 /// Helper function to make control characters visible so users can see the underlying filename.
 fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
@@ -56,7 +55,6 @@ pub fn permission_prompt(
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
-    
     bls_set_prompt_callbacks(before_callback, after_callback);
 }
 
@@ -391,9 +389,9 @@ impl PermissionPrompter for TtyPrompter {
 pub mod tests {
     use super::*;
     use deno_core::parking_lot::Mutex;
+    use once_cell::sync::Lazy;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering;
-    use once_cell::sync::Lazy;
 
     pub struct TestPrompter;
 

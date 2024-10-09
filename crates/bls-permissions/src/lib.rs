@@ -29,6 +29,7 @@ use error::uri_error;
 
 mod prompter;
 pub use prompter::*;
+pub use prompter::bls_permission_prompt as permission_prompt;
 
 pub type AnyError = anyhow::Error;
 
@@ -54,6 +55,17 @@ pub fn mark_standalone() {
 
 pub fn is_standalone() -> bool {
     IS_STANDALONE.load(Ordering::SeqCst)
+}
+
+impl fmt::Display for PermissionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PermissionState::Granted => f.pad("granted"),
+            PermissionState::GrantedPartial => f.pad("granted-partial"),
+            PermissionState::Prompt => f.pad("prompt"),
+            PermissionState::Denied => f.pad("denied"),
+        }
+    }
 }
 
 impl PermissionState {
@@ -93,7 +105,7 @@ impl PermissionState {
 
     /// Check the permission state. bool is whether a prompt was issued.
     #[inline]
-    fn check(
+    pub fn check(
         self,
         name: &str,
         api_name: Option<&str>,
@@ -104,7 +116,7 @@ impl PermissionState {
     }
 
     #[inline]
-    fn check2(
+    pub fn check2(
         self,
         name: &str,
         api_name: Option<&str>,
@@ -267,7 +279,7 @@ fn parse_path_list<T: Descriptor + Hash>(
 }
 
 #[inline]
-fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
+pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
     if path.is_absolute() {
         Ok(normalize_path(path))
     } else {
@@ -279,13 +291,13 @@ fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnaryPermission<T: Descriptor + Hash> {
-    granted_global: bool,
-    granted_list: HashSet<T>,
-    flag_denied_global: bool,
-    flag_denied_list: HashSet<T>,
-    prompt_denied_global: bool,
-    prompt_denied_list: HashSet<T>,
-    prompt: bool,
+    pub granted_global: bool,
+    pub granted_list: HashSet<T>,
+    pub flag_denied_global: bool,
+    pub flag_denied_list: HashSet<T>,
+    pub prompt_denied_global: bool,
+    pub prompt_denied_list: HashSet<T>,
+    pub prompt: bool,
 }
 
 pub trait Descriptor: Eq + Clone + Hash {
@@ -526,7 +538,7 @@ impl<T: Descriptor + Hash> UnaryPermission<T> {
         }
     }
 
-    fn create_child_permissions(
+    pub fn create_child_permissions(
         &mut self,
         flag: ChildUnaryPermissionArg,
     ) -> Result<UnaryPermission<T>, AnyError> {
@@ -1512,6 +1524,72 @@ pub struct UnitPermission {
     pub description: &'static str,
     pub state: PermissionState,
     pub prompt: bool,
+}
+
+impl UnitPermission {
+    pub fn query(&self) -> PermissionState {
+        self.state
+    }
+
+    pub fn request(&mut self) -> PermissionState {
+        if self.state == PermissionState::Prompt {
+            if PromptResponse::Allow
+                == permission_prompt(
+                    &format!("access to {}", self.description),
+                    self.name,
+                    Some("Deno.permissions.query()"),
+                    false,
+                )
+            {
+                self.state = PermissionState::Granted;
+            } else {
+                self.state = PermissionState::Denied;
+            }
+        }
+        self.state
+    }
+
+    pub fn revoke(&mut self) -> PermissionState {
+        if self.state == PermissionState::Granted {
+            self.state = PermissionState::Prompt;
+        }
+        self.state
+    }
+
+    pub fn check(&mut self) -> Result<(), AnyError> {
+        let (result, prompted, _is_allow_all) =
+            self.state.check(self.name, None, None, self.prompt);
+        if prompted {
+            if result.is_ok() {
+                self.state = PermissionState::Granted;
+            } else {
+                self.state = PermissionState::Denied;
+            }
+        }
+        result
+    }
+
+    pub fn create_child_permissions(&mut self, flag: ChildUnitPermissionArg) -> Result<Self, AnyError> {
+        let mut perm = self.clone();
+        match flag {
+            ChildUnitPermissionArg::Inherit => {
+                // copy
+            }
+            ChildUnitPermissionArg::Granted => {
+                if self.check().is_err() {
+                    return Err(escalation_error());
+                }
+                perm.state = PermissionState::Granted;
+            }
+            ChildUnitPermissionArg::NotGranted => {
+                perm.state = PermissionState::Prompt;
+            }
+        }
+        if self.state == PermissionState::Denied {
+            perm.state = PermissionState::Denied;
+        }
+        Ok(perm)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

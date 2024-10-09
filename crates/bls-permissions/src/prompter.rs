@@ -43,7 +43,7 @@ static MAYBE_BEFORE_PROMPT_CALLBACK: Lazy<Mutex<Option<PromptCallback>>> =
 static MAYBE_AFTER_PROMPT_CALLBACK: Lazy<Mutex<Option<PromptCallback>>> =
     Lazy::new(|| Mutex::new(None));
 
-pub fn permission_prompt(
+pub fn bls_permission_prompt(
     message: &str,
     flag: &str,
     api_name: Option<&str>,
@@ -61,11 +61,11 @@ pub fn permission_prompt(
     r
 }
 
-pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
+pub fn bls_set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
     *MAYBE_BEFORE_PROMPT_CALLBACK.lock() = Some(before_callback);
     *MAYBE_AFTER_PROMPT_CALLBACK.lock() = Some(after_callback);
 }
 
-pub fn set_prompter(prompter: Box<dyn PermissionPrompter>) {
+pub fn bls_set_prompter(prompter: Box<dyn PermissionPrompter>) {
     *PERMISSION_PROMPTER.lock() = prompter;
 }
