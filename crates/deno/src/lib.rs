@@ -27,31 +27,6 @@ pub use prompter::PromptCallback;
 pub use bls_permissions::*;
 
 
-/// `AllowPartial` prescribes how to treat a permission which is partially
-/// denied due to a `--deny-*` flag affecting a subscope of the queried
-/// permission.
-///
-/// `TreatAsGranted` is used in place of `TreatAsPartialGranted` when we don't
-/// want to wastefully check for partial denials when, say, checking read
-/// access for a file.
-#[derive(Debug, Eq, PartialEq)]
-#[allow(clippy::enum_variant_names)]
-enum AllowPartial {
-    TreatAsGranted,
-    TreatAsDenied,
-    TreatAsPartialGranted,
-}
-
-impl From<bool> for AllowPartial {
-    fn from(value: bool) -> Self {
-        if value {
-            Self::TreatAsGranted
-        } else {
-            Self::TreatAsDenied
-        }
-    }
-}
-
 /// Wrapper struct for `Permissions` that can be shared across threads.
 ///
 /// We need a way to have internal mutability for permissions as they might get
@@ -63,6 +38,7 @@ pub struct PermissionsContainer(pub Arc<Mutex<Permissions>>);
 
 impl PermissionsContainer {
     pub fn new(perms: Permissions) -> Self {
+        init_debug_log_msg_func(|msg: &str| format!("{}", colors::bold(msg)));
         Self(Arc::new(Mutex::new(perms)))
     }
 

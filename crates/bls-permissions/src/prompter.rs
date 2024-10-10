@@ -10,6 +10,8 @@ pub enum PromptResponse {
 
 pub type PromptCallback = Box<dyn FnMut() + Send + Sync>;
 
+pub const PERMISSION_EMOJI: &str = "⚠️";
+
 pub trait PermissionPrompter: Send + Sync {
     fn prompt(
         &mut self,

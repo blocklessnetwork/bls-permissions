@@ -1,13 +1,16 @@
-use anyhow::Context;
-use fqdn::FQDN;
-use once_cell::sync::Lazy;
 use serde::de;
+use std::fmt;
+use std::sync::Once;
+use url::Url;
+use fqdn::FQDN;
+use anyhow::Context;
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::net::IpAddr;
@@ -19,8 +22,6 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use which::which;
-
-use url::Url;
 
 mod error;
 use error::custom_error;
@@ -46,6 +47,16 @@ pub enum PermissionState {
 }
 
 static DEBUG_LOG_ENABLED: Lazy<bool> = Lazy::new(|| log::log_enabled!(log::Level::Debug));
+
+static DEBUG_LOG_MSG_FUNC: Mutex<Option<Box<dyn Fn(&str) -> String + 'static + Send + Sync>>> = Mutex::new(None);
+
+/// ensure init only once.
+pub fn init_debug_log_msg_func(fun: impl Fn(&str) -> String + 'static + Send + Sync) {
+    static INIT_ONCE: Once = Once::new();
+    INIT_ONCE.call_once(|| {
+        *DEBUG_LOG_MSG_FUNC.lock() = Some(Box::new(fun));
+    });
+}
 
 static IS_STANDALONE: AtomicBool = AtomicBool::new(false);
 
@@ -99,7 +110,13 @@ impl PermissionState {
     #[inline(always)]
     fn log_perm_access(name: &str, info: impl FnOnce() -> Option<String>) {
         if *DEBUG_LOG_ENABLED {
-            log::debug!("{}", Self::fmt_access(name, info));
+            let msg = Self::fmt_access(name, info);
+            let msg = if let Some(f) = DEBUG_LOG_MSG_FUNC.lock().as_ref() {
+                (f)(&msg)
+            } else {
+                msg
+            };
+            log::debug!("{} Granted {msg}", PERMISSION_EMOJI);
         }
     }
 
