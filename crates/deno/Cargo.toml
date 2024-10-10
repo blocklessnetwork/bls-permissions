@@ -1,0 +1,21 @@
+[package]
+name = "deno_permissions"
+version = "0.24.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Provides the deno permissions implementation."
+
+[dependencies]
+deno_core.workspace = true
+deno_path_util.workspace = true
+deno_terminal.workspace = true
+fqdn.workspace = true
+libc.workspace = true
+log.workspace = true
+once_cell.workspace = true
+percent-encoding = { version = "2.3.1", features = [] }
+serde.workspace = true
+which.workspace = true
+bls-permissions.workspace = true
