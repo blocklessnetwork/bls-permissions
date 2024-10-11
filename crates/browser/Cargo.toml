@@ -1,0 +1,11 @@
+[package]
+name = "browser_permissions"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Provides the browser runtime permissions implementation."
+
+[dependencies]
+bls-permissions.workspace = true
