@@ -1,6 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use deno_core::parking_lot::Mutex;
 use deno_core::serde::de;
 use deno_core::serde::Deserialize;
 use deno_core::serde::Deserializer;
@@ -11,12 +10,10 @@ use deno_core::unsync::sync::AtomicFlag;
 use deno_core::url::Url;
 use deno_terminal::colors;
 
-use std::ffi::OsStr;
 use std::fmt;
 use std::fmt::Debug;
 
 use std::path::Path;
-use std::sync::Arc;
 
 pub mod prompter;
 
@@ -27,24 +24,18 @@ pub use prompter::PromptCallback;
 pub use bls_permissions::*;
 
 
-/// Wrapper struct for `Permissions` that can be shared across threads.
-///
-/// We need a way to have internal mutability for permissions as they might get
-/// passed to a future that will prompt the user for permission (and in such
-/// case might need to be mutated). Also for the Web Worker API we need a way
-/// to send permissions to a new thread.
 #[derive(Clone, Debug)]
-pub struct PermissionsContainer(pub Arc<Mutex<Permissions>>);
+pub struct PermissionsContainer(bls_permissions::BlsPermissionsContainer);
 
 impl PermissionsContainer {
     pub fn new(perms: Permissions) -> Self {
         init_debug_log_msg_func(|msg: &str| format!("{}", colors::bold(msg)));
-        Self(Arc::new(Mutex::new(perms)))
+        Self(BlsPermissionsContainer::new(perms))
     }
 
     #[inline(always)]
     pub fn allow_hrtime(&mut self) -> bool {
-        self.0.lock().hrtime.check().is_ok()
+        self.0.allow_hrtime()
     }
 
     pub fn allow_all() -> Self {
@@ -53,12 +44,12 @@ impl PermissionsContainer {
 
     #[inline(always)]
     pub fn check_specifier(&self, specifier: &ModuleSpecifier) -> Result<(), AnyError> {
-        self.0.lock().check_specifier(specifier)
+        self.0.check_specifier(specifier)
     }
 
     #[inline(always)]
     pub fn check_read(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().read.check(path, Some(api_name))
+        self.0.check_read(path, api_name)
     }
 
     #[inline(always)]
@@ -67,7 +58,7 @@ impl PermissionsContainer {
         path: &Path,
         api_name: Option<&str>,
     ) -> Result<(), AnyError> {
-        self.0.lock().read.check(path, api_name)
+        self.0.check_read_with_api_name(path, api_name)
     }
 
     #[inline(always)]
@@ -77,17 +68,17 @@ impl PermissionsContainer {
         display: &str,
         api_name: &str,
     ) -> Result<(), AnyError> {
-        self.0.lock().read.check_blind(path, display, api_name)
+        self.0.check_read_blind(path, display, api_name)
     }
 
     #[inline(always)]
     pub fn check_read_all(&mut self, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().read.check_all(Some(api_name))
+        self.0.check_read_all(api_name)
     }
 
     #[inline(always)]
     pub fn check_write(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().write.check(path, Some(api_name))
+        self.0.check_write(path, api_name)
     }
 
     #[inline(always)]
@@ -96,12 +87,12 @@ impl PermissionsContainer {
         path: &Path,
         api_name: Option<&str>,
     ) -> Result<(), AnyError> {
-        self.0.lock().write.check(path, api_name)
+        self.0.check_write_with_api_name(path, api_name)
     }
 
     #[inline(always)]
     pub fn check_write_all(&mut self, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().write.check_all(Some(api_name))
+        self.0.check_write_all(api_name)
     }
 
     #[inline(always)]
@@ -111,156 +102,63 @@ impl PermissionsContainer {
         display: &str,
         api_name: &str,
     ) -> Result<(), AnyError> {
-        self.0.lock().write.check_blind(path, display, api_name)
+        self.0.check_write_blind(path, display, api_name)
     }
 
     #[inline(always)]
     pub fn check_write_partial(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().write.check_partial(path, Some(api_name))
+        self.0.check_write_partial(path, api_name)
     }
 
     #[inline(always)]
     pub fn check_run(&mut self, cmd: &str, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().run.check(cmd, Some(api_name))
+        self.0.check_run(cmd, api_name)
     }
 
     #[inline(always)]
     pub fn check_run_all(&mut self, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().run.check_all(Some(api_name))
+        self.0.check_run_all(api_name)
     }
 
     #[inline(always)]
     pub fn check_sys(&self, kind: &str, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().sys.check(kind, Some(api_name))
+        self.0.check_sys(kind, api_name)
     }
 
     #[inline(always)]
     pub fn check_env(&mut self, var: &str) -> Result<(), AnyError> {
-        self.0.lock().env.check(var, None)
+        self.0.check_env(var)
     }
 
     #[inline(always)]
     pub fn check_env_all(&mut self) -> Result<(), AnyError> {
-        self.0.lock().env.check_all()
+        self.0.check_env_all()
     }
 
     #[inline(always)]
     pub fn check_sys_all(&mut self) -> Result<(), AnyError> {
-        self.0.lock().sys.check_all()
+        self.0.check_sys_all()
     }
 
     #[inline(always)]
     pub fn check_ffi_all(&mut self) -> Result<(), AnyError> {
-        self.0.lock().ffi.check_all()
+        self.0.check_ffi_all()
     }
 
     /// This checks to see if the allow-all flag was passed, not whether all
     /// permissions are enabled!
     #[inline(always)]
     pub fn check_was_allow_all_flag_passed(&mut self) -> Result<(), AnyError> {
-        self.0.lock().all.check()
+        self.0.check_was_allow_all_flag_passed()
     }
 
-    /// Checks special file access, returning the failed permission type if
-    /// not successful.
-    pub fn check_special_file(&mut self, path: &Path, _api_name: &str) -> Result<(), &'static str> {
-        let error_all = |_| "all";
-
-        // Safe files with no major additional side-effects. While there's a small risk of someone
-        // draining system entropy by just reading one of these files constantly, that's not really
-        // something we worry about as they already have --allow-read to /dev.
-        if cfg!(unix)
-            && (path == OsStr::new("/dev/random")
-                || path == OsStr::new("/dev/urandom")
-                || path == OsStr::new("/dev/zero")
-                || path == OsStr::new("/dev/null"))
-        {
-            return Ok(());
-        }
-
-        /// We'll allow opening /proc/self/fd/{n} without additional permissions under the following conditions:
-        ///
-        /// 1. n > 2. This allows for opening bash-style redirections, but not stdio
-        /// 2. the fd referred to by n is a pipe
-        #[cfg(unix)]
-        fn is_fd_file_is_pipe(path: &Path) -> bool {
-            if let Some(fd) = path.file_name() {
-                if let Ok(s) = std::str::from_utf8(fd.as_encoded_bytes()) {
-                    if let Ok(n) = s.parse::<i32>() {
-                        if n > 2 {
-                            // SAFETY: This is proper use of the stat syscall
-                            unsafe {
-                                let mut stat = std::mem::zeroed::<libc::stat>();
-                                if libc::fstat(n, &mut stat as _) == 0
-                                    && ((stat.st_mode & libc::S_IFMT) & libc::S_IFIFO) != 0
-                                {
-                                    return true;
-                                }
-                            };
-                        }
-                    }
-                }
-            }
-            false
-        }
-
-        // On unixy systems, we allow opening /dev/fd/XXX for valid FDs that
-        // are pipes.
-        #[cfg(unix)]
-        if path.starts_with("/dev/fd") && is_fd_file_is_pipe(path) {
-            return Ok(());
-        }
-
-        if cfg!(target_os = "linux") {
-            // On Linux, we also allow opening /proc/self/fd/XXX for valid FDs that
-            // are pipes.
-            #[cfg(unix)]
-            if path.starts_with("/proc/self/fd") && is_fd_file_is_pipe(path) {
-                return Ok(());
-            }
-            if path.starts_with("/dev") || path.starts_with("/proc") || path.starts_with("/sys") {
-                if path.ends_with("/environ") {
-                    self.check_env_all().map_err(|_| "env")?;
-                } else {
-                    self.check_was_allow_all_flag_passed().map_err(error_all)?;
-                }
-            }
-        } else if cfg!(unix) {
-            if path.starts_with("/dev") {
-                self.check_was_allow_all_flag_passed().map_err(error_all)?;
-            }
-        } else if cfg!(target_os = "windows") {
-            // \\.\nul is allowed
-            let s = path.as_os_str().as_encoded_bytes();
-            if s.eq_ignore_ascii_case(br#"\\.\nul"#) {
-                return Ok(());
-            }
-
-            fn is_normalized_windows_drive_path(path: &Path) -> bool {
-                let s = path.as_os_str().as_encoded_bytes();
-                // \\?\X:\
-                if s.len() < 7 {
-                    false
-                } else if s.starts_with(br#"\\?\"#) {
-                    s[4].is_ascii_alphabetic() && s[5] == b':' && s[6] == b'\\'
-                } else {
-                    false
-                }
-            }
-
-            // If this is a normalized drive path, accept it
-            if !is_normalized_windows_drive_path(path) {
-                self.check_was_allow_all_flag_passed().map_err(error_all)?;
-            }
-        } else {
-            unimplemented!()
-        }
-        Ok(())
+    pub fn check_special_file(&mut self, path: &Path, api_name: &str) -> Result<(), &'static str> {
+        self.0.check_special_file(path, api_name)
     }
 
     #[inline(always)]
     pub fn check_net_url(&mut self, url: &Url, api_name: &str) -> Result<(), AnyError> {
-        self.0.lock().net.check_url(url, Some(api_name))
+        self.0.check_net_url(url, api_name)
     }
 
     #[inline(always)]
@@ -269,19 +167,17 @@ impl PermissionsContainer {
         host: &(T, Option<u16>),
         api_name: &str,
     ) -> Result<(), AnyError> {
-        let hostname = host.0.as_ref().parse::<Host>()?;
-        let descriptor = NetDescriptor(hostname, host.1);
-        self.0.lock().net.check(&descriptor, Some(api_name))
+        self.0.check_net(host, api_name)
     }
 
     #[inline(always)]
     pub fn check_ffi(&mut self, path: Option<&Path>) -> Result<(), AnyError> {
-        self.0.lock().ffi.check(path.unwrap(), None)
+        self.0.check_ffi(path)
     }
 
     #[inline(always)]
     pub fn check_ffi_partial(&mut self, path: Option<&Path>) -> Result<(), AnyError> {
-        self.0.lock().ffi.check_partial(path)
+        self.0.check_ffi_partial(path)
     }
 }
 

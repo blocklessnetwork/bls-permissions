@@ -9,3 +9,4 @@ description = "Provides the browser runtime permissions implementation."
 
 [dependencies]
 bls-permissions.workspace = true
+

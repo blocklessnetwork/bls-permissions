@@ -17,3 +17,7 @@ which.workspace = true
 once_cell.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+libc.workspace = true
+
+[dev.dependencies]
+serde.workspace = true
