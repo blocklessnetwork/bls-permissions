@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::ffi::OsStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+#[cfg(not(target_arch = "wasm32"))]
 use which::which;
 
 mod error;
@@ -944,10 +945,13 @@ impl Descriptor for RunDescriptor {
 
     fn aliases(&self) -> Vec<Self> {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RunDescriptor::Name(name) => match which(name) {
                 Ok(path) => vec![RunDescriptor::Path(path)],
                 Err(_) => vec![],
             },
+            #[cfg(target_arch = "wasm32")]
+            RunDescriptor::Name(_) => vec![], 
             RunDescriptor::Path(_) => vec![],
         }
     }
@@ -1523,8 +1527,12 @@ impl Permissions {
     /// A helper function that determines if the module specifier is a local or
     /// remote, and performs a read or net check for the specifier.
     pub fn check_specifier(&mut self, specifier: &ModuleSpecifier) -> Result<(), AnyError> {
+        #[cfg(target_arch="wasm32")]
+        let filepath  =  to_file_path(specifier);
+        #[cfg(not(target_arch="wasm32"))]
+        let filepath = specifier.to_file_path();
         match specifier.scheme() {
-            "file" => match specifier.to_file_path() {
+            "file" => match filepath {
                 Ok(path) => self.read.check(&path, Some("import()")),
                 Err(_) => Err(uri_error(format!(
                     "Invalid file path.\n  Specifier: {specifier}"
@@ -1535,6 +1543,60 @@ impl Permissions {
             _ => self.net.check_url(specifier, Some("import()")),
         }
     }
+}
+
+#[cfg(target_arch="wasm32")]
+fn to_file_path(url: &Url) -> Result<PathBuf, ()> {
+    if let Some(segments) = url.path_segments() {
+        let host = match url.host() {
+            None | Some(url::Host::Domain("localhost")) => None,
+            _ => return Err(()),
+        };
+
+        return file_url_segments_to_pathbuf(host, segments);
+    }
+    Err(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn file_url_segments_to_pathbuf(
+    host: Option<&str>,
+    segments: std::str::Split<'_, char>,
+) -> Result<PathBuf, ()> {
+    if host.is_some() {
+        return Err(());
+    }
+
+    let mut bytes = if cfg!(target_os = "redox") {
+        b"file:".to_vec()
+    } else {
+        Vec::new()
+    };
+
+    for segment in segments {
+        bytes.push(b'/');
+        bytes.extend(percent_encoding::percent_decode(segment.as_bytes()));
+    }
+
+    // A windows drive letter must end with a slash.
+    if bytes.len() > 2
+        && bytes[bytes.len() - 2].is_ascii_alphabetic()
+        && matches!(bytes[bytes.len() - 1], b':' | b'|')
+    {
+        bytes.push(b'/');
+    }
+
+    let path_str = unsafe {
+        String::from_raw_parts(bytes.as_mut_ptr(), bytes.len(), bytes.capacity())
+    };
+    let path = PathBuf::from(path_str);
+
+    debug_assert!(
+        path.is_absolute(),
+        "to_file_path() failed to produce an absolute Path"
+    );
+
+    Ok(path)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
