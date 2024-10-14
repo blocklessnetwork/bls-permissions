@@ -17,6 +17,8 @@ use bls_permissions::bls_set_prompter;
 pub use bls_permissions::PermissionPrompter;
 pub use bls_permissions::PromptCallback;
 pub use bls_permissions::PromptResponse;
+pub use bls_permissions::PERMISSION_EMOJI;
+pub use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
 
 /// Helper function to make control characters visible so users can see the underlying filename.
 fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
@@ -35,11 +37,6 @@ fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
     }
     output.into()
 }
-
-pub const PERMISSION_EMOJI: &str = "⚠️";
-
-// 10kB of permission prompting should be enough for anyone
-const MAX_PERMISSION_PROMPT_LENGTH: usize = 10 * 1024;
 
 pub fn permission_prompt(
     message: &str,
