@@ -1,0 +1,33 @@
+<html>
+<body>
+<script>
+let cachedTextDecoder = new TextDecoder('utf-8');
+function getStringFromWasm(ptr, len) {
+    return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
+}
+const imports = {
+  __wbindgen_placeholder__: {
+    __wbindgen_describe: console.log,
+    __wbindgen_throw: function(ptr, len) {
+        throw new Error(getStringFromWasm(ptr, len));
+    },
+  },
+  __wbindgen_externref_xform__: {
+    __wbindgen_externref_table_grow: () => {
+      throw Error("Unexpected call to __wbindgen_externref_table_grow");
+    },
+    __wbindgen_externref_table_set_null: () => {
+      throw Error("Unexpected call to __wbindgen_externref_table_set_null");
+    },
+    
+  },
+};
+fetch("./browser_permissions.wasm")
+.then((resp) => resp.arrayBuffer())
+.then((bs) => WebAssembly.instantiate(bs, imports))
+.then((rs) => {
+    console.log(rs.instance.exports)
+})
+</script>
+</body>
+</html>

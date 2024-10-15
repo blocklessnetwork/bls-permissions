@@ -14,15 +14,30 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = console, js_name = error)]
     fn console_error(s: &str);
-
     
+    #[wasm_bindgen(js_namespace = bls_runtime, js_name = error)]
+    fn bls_runtime_err(s: &str);
+
+    #[wasm_bindgen(js_namespace = bls_runtime, js_name = prompter)]
+    fn bls_runtime_prompter() -> String;
 }
 
-macro_rules! console_log {
+macro_rules! log {
     ($($arg:tt)*) => {
-        let s = format!($($arg)*);
-        console_log(&s);
+        bls_runtime_err(&format!($($arg)*));
     };
+}
+
+macro_rules! error {
+    ($($arg:tt)*) => {
+        console_error(&format!($($arg)*));
+    }
+}
+
+macro_rules! info {
+    ($($arg:tt)*) => {
+        console_log(&format!($($arg)*));
+    }
 }
 
 pub struct BrowserPrompter;
@@ -32,16 +47,45 @@ impl PermissionPrompter for BrowserPrompter {
         &mut self,
         message: &str,
         name: &str,
-        api_name: Option<&str>,
+        _api_name: Option<&str>,
         is_unary: bool,
     ) -> PromptResponse {
-        #[allow(clippy::print_stderr)]
         if message.len() > MAX_PERMISSION_PROMPT_LENGTH {
-            console_log!("❌ Permission prompt length ({} bytes) was larger than the configured maximum length ({} bytes): denying request.", message.len(), MAX_PERMISSION_PROMPT_LENGTH);
-            console_log!("❌ WARNING: This may indicate that code is trying to bypass or hide permission check requests.");
-            console_log!("❌ Run again with --allow-{name} to bypass this check if this is really what you want to do.");
+            log!("❌ Permission prompt length ({} bytes) was larger than the configured maximum length ({} bytes): denying request.", message.len(), MAX_PERMISSION_PROMPT_LENGTH);
+            log!("❌ WARNING: This may indicate that code is trying to bypass or hide permission check requests.");
+            log!("❌ Run again with --allow-{name} to bypass this check if this is really what you want to do.");
             return PromptResponse::Deny;
         }
-        return PromptResponse::Deny;
+
+        let opts: String = if is_unary {
+            format!("[y/n/A] (y = yes, allow; n = no, deny; A = allow all {name} permissions)")
+        } else {
+            "[y/n] (y = yes, allow; n = no, deny)".to_string()
+        };
+        let resp = loop {
+            let input = bls_runtime_prompter();
+            let bytes = input.as_bytes();
+            match bytes[0] as char {
+                'y' | 'Y' => {
+                    let msg = format!("Granted {message} access.");
+                    info!("✅ {msg}");
+                    break PromptResponse::Allow;
+                }
+                'n' | 'N' | '\x1b' => {
+                    let msg = format!("Denied {message}.");
+                    info!("❌ {msg}");
+                    break PromptResponse::Deny;
+                }
+                'A' if is_unary => {
+                    let msg = format!("Granted all {name} access.");
+                    info!("✅ {msg}");
+                    break PromptResponse::AllowAll;
+                }
+                _ => {
+                    info!("┗ Unrecognized option. Allow? {opts} > ");
+                }
+            }
+        };
+        return resp;
     }
 }
