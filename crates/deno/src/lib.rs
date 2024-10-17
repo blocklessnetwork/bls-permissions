@@ -3,21 +3,15 @@
 use deno_core::serde::de;
 use deno_core::serde::Deserialize;
 use deno_core::serde::Deserializer;
-
 use deno_core::serde_json;
 use deno_core::unsync::sync::AtomicFlag;
-
-use deno_core::url::Url;
 use deno_terminal::colors;
 
 use std::fmt;
 use std::fmt::Debug;
-
 use std::path::Path;
 
 pub mod prompter;
-
-
 pub use prompter::set_prompt_callbacks;
 pub use prompter::PromptCallback;
 

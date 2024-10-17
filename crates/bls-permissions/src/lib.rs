@@ -1,7 +1,6 @@
 use serde::de;
 use std::fmt;
 use std::sync::Once;
-use url::Url;
 use fqdn::FQDN;
 use anyhow::Context;
 use once_cell::sync::Lazy;
@@ -25,6 +24,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 #[cfg(not(target_arch = "wasm32"))]
 use which::which;
+pub use url::Url;
 
 mod error;
 use error::custom_error;
@@ -1812,7 +1812,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn allow_hrtime(&mut self) -> bool {
+    pub fn allow_hrtime(&self) -> bool {
         self.0.lock().hrtime.check().is_ok()
     }
 
@@ -1826,7 +1826,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_read(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_read(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().read.check(path, Some(api_name))
     }
 
@@ -1841,7 +1841,7 @@ impl BlsPermissionsContainer {
 
     #[inline(always)]
     pub fn check_read_blind(
-        &mut self,
+        &self,
         path: &Path,
         display: &str,
         api_name: &str,
@@ -1850,12 +1850,12 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_read_all(&mut self, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_read_all(&self, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().read.check_all(Some(api_name))
     }
 
     #[inline(always)]
-    pub fn check_write(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_write(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().write.check(path, Some(api_name))
     }
 
@@ -1869,13 +1869,13 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_write_all(&mut self, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_write_all(&self, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().write.check_all(Some(api_name))
     }
 
     #[inline(always)]
     pub fn check_write_blind(
-        &mut self,
+        &self,
         path: &Path,
         display: &str,
         api_name: &str,
@@ -1884,17 +1884,17 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_write_partial(&mut self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_write_partial(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().write.check_partial(path, Some(api_name))
     }
 
     #[inline(always)]
-    pub fn check_run(&mut self, cmd: &str, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_run(&self, cmd: &str, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().run.check(cmd, Some(api_name))
     }
 
     #[inline(always)]
-    pub fn check_run_all(&mut self, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_run_all(&self, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().run.check_all(Some(api_name))
     }
 
@@ -1904,35 +1904,35 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_env(&mut self, var: &str) -> Result<(), AnyError> {
+    pub fn check_env(&self, var: &str) -> Result<(), AnyError> {
         self.0.lock().env.check(var, None)
     }
 
     #[inline(always)]
-    pub fn check_env_all(&mut self) -> Result<(), AnyError> {
+    pub fn check_env_all(&self) -> Result<(), AnyError> {
         self.0.lock().env.check_all()
     }
 
     #[inline(always)]
-    pub fn check_sys_all(&mut self) -> Result<(), AnyError> {
+    pub fn check_sys_all(&self) -> Result<(), AnyError> {
         self.0.lock().sys.check_all()
     }
 
     #[inline(always)]
-    pub fn check_ffi_all(&mut self) -> Result<(), AnyError> {
+    pub fn check_ffi_all(& self) -> Result<(), AnyError> {
         self.0.lock().ffi.check_all()
     }
 
     /// This checks to see if the allow-all flag was passed, not whether all
     /// permissions are enabled!
     #[inline(always)]
-    pub fn check_was_allow_all_flag_passed(&mut self) -> Result<(), AnyError> {
+    pub fn check_was_allow_all_flag_passed(&self) -> Result<(), AnyError> {
         self.0.lock().all.check()
     }
 
     /// Checks special file access, returning the failed permission type if
     /// not successful.
-    pub fn check_special_file(&mut self, path: &Path, _api_name: &str) -> Result<(), &'static str> {
+    pub fn check_special_file(&self, path: &Path, _api_name: &str) -> Result<(), &'static str> {
         let error_all = |_| "all";
 
         // Safe files with no major additional side-effects. While there's a small risk of someone
@@ -2028,7 +2028,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_net_url(&mut self, url: &Url, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_net_url(&self, url: &Url, api_name: &str) -> Result<(), AnyError> {
         self.0.lock().net.check_url(url, Some(api_name))
     }
 
@@ -2044,12 +2044,12 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_ffi(&mut self, path: Option<&Path>) -> Result<(), AnyError> {
+    pub fn check_ffi(&self, path: Option<&Path>) -> Result<(), AnyError> {
         self.0.lock().ffi.check(path.unwrap(), None)
     }
 
     #[inline(always)]
-    pub fn check_ffi_partial(&mut self, path: Option<&Path>) -> Result<(), AnyError> {
+    pub fn check_ffi_partial(&self, path: Option<&Path>) -> Result<(), AnyError> {
         self.0.lock().ffi.check_partial(path)
     }
 }

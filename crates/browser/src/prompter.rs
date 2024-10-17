@@ -1,44 +1,7 @@
 use bls_permissions::PermissionPrompter;
 use bls_permissions::PromptResponse;
 use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
-use wasm_bindgen::prelude::wasm_bindgen;
-
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console, js_name = log)]
-    fn console_log(s: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name = debug)]
-    fn console_debug(s: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name = error)]
-    fn console_error(s: &str);
-    
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = error)]
-    fn bls_runtime_err(s: &str);
-
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = prompter)]
-    fn bls_runtime_prompter() -> String;
-}
-
-macro_rules! log {
-    ($($arg:tt)*) => {
-        bls_runtime_err(&format!($($arg)*));
-    };
-}
-
-macro_rules! error {
-    ($($arg:tt)*) => {
-        console_error(&format!($($arg)*));
-    }
-}
-
-macro_rules! info {
-    ($($arg:tt)*) => {
-        console_log(&format!($($arg)*));
-    }
-}
+use crate::bls_runtime_prompter;
 
 pub struct BrowserPrompter;
 

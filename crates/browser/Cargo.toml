@@ -10,7 +10,7 @@ description = "Provides the browser runtime permissions implementation."
 [dependencies]
 bls-permissions.workspace = true
 wasm-bindgen = "0.2.95"
-
+once_cell.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
