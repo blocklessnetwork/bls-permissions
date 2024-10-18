@@ -23,6 +23,8 @@ percent-encoding.workspace = true
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 which.workspace = true
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
 
 [dev.dependencies]
 serde.workspace = true

@@ -1,3 +1,5 @@
+use parking_lot::lock_api::MutexGuard;
+use parking_lot::RawMutex;
 use serde::de;
 use std::fmt;
 use std::sync::Once;
@@ -33,7 +35,9 @@ use error::uri_error;
 
 mod prompter;
 pub use prompter::*;
-pub use prompter::bls_permission_prompt as permission_prompt;
+use prompter::bls_permission_prompt as permission_prompt;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 pub type AnyError = anyhow::Error;
 
@@ -48,6 +52,42 @@ pub enum PermissionState {
     Prompt = 2,
     Denied = 3,
 }
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    pub fn console_log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = debug)]
+    pub fn console_debug(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    pub fn console_error(s: &str);
+    
+    #[wasm_bindgen(js_namespace = bls_runtime, js_name = confirm)]
+    pub fn bls_runtime_message_confirm(s: &str);
+
+    #[wasm_bindgen(js_namespace = bls_runtime, js_name = prompter)]
+    pub fn bls_runtime_prompter() -> String;
+}
+
+#[allow(dead_code)]
+macro_rules! info {
+    ($($arg:tt)*) => {
+        #[cfg(target_arch = "wasm32")]
+        unsafe {crate::console_log(&format!($($arg)*))};
+    };
+}
+
+#[allow(dead_code)]
+macro_rules! error {
+    ($($arg:tt)*) => {
+        #[cfg(target_arch = "wasm32")]
+        crate::console_error(&format!($($arg)*));
+    };
+}
+
 
 static DEBUG_LOG_ENABLED: Lazy<bool> = Lazy::new(|| log::log_enabled!(log::Level::Debug));
 
@@ -304,7 +344,10 @@ pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
         Ok(normalize_path(path))
     } else {
         #[allow(clippy::disallowed_methods)]
-        let cwd = std::env::current_dir().context("Failed to get current working directory")?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let cwd: PathBuf = std::env::current_dir().context("Failed to get current working directory")?;
+        #[cfg(target_arch = "wasm32")]
+        let cwd: PathBuf = "/".into();
         Ok(normalize_path(cwd.join(path)))
     }
 }
@@ -1806,6 +1849,12 @@ impl From<bool> for AllowPartial {
 pub struct BlsPermissionsContainer(pub Arc<Mutex<Permissions>>);
 
 impl BlsPermissionsContainer {
+    
+    #[inline(always)]
+    pub fn lock(&self) -> MutexGuard<'_, RawMutex, Permissions> {
+        self.0.lock()
+    }
+
     pub fn new(perms: Permissions) -> Self {
         // init_debug_log_msg_func(|msg: &str| format!("{}", colors::bold(msg)));
         Self(Arc::new(Mutex::new(perms)))

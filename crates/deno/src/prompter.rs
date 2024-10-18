@@ -11,7 +11,6 @@ use std::io::Write as IoWrite;
 use std::sync::Once;
 
 use crate::is_standalone;
-use bls_permissions::bls_permission_prompt;
 use bls_permissions::bls_set_prompt_callbacks;
 use bls_permissions::bls_set_prompter;
 pub use bls_permissions::PermissionPrompter;
@@ -38,17 +37,12 @@ fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
     output.into()
 }
 
-pub fn permission_prompt(
-    message: &str,
-    flag: &str,
-    api_name: Option<&str>,
-    is_unary: bool,
-) -> PromptResponse {
+pub fn init_tty_prompter() {
     static TTYPROMPTER: Once = Once::new();
     TTYPROMPTER.call_once(|| {
+        println!("tty installed");
         bls_set_prompter(Box::new(TtyPrompter));
     });
-    bls_permission_prompt(message, flag, api_name, is_unary)
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {

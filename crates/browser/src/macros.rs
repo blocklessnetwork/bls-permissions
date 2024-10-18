@@ -3,30 +3,38 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s: &str);
+    type Class;
+
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    pub fn console_log(s: &str);
 
     #[wasm_bindgen(js_namespace = console, js_name = debug)]
     pub fn console_debug(s: &str);
 
     #[wasm_bindgen(js_namespace = console, js_name = error)]
     pub fn console_error(s: &str);
-    
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = error)]
-    pub fn bls_runtime_err(s: &str);
-
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = prompter)]
-    pub fn bls_runtime_prompter() -> String;
 }
 
-macro_rules! log {
+#[wasm_bindgen(module = "/module.js")]
+extern "C" {
+    pub fn bls_runtime_input() -> String;
+    pub fn bls_runtime_info(info: &str);
+}
+
+macro_rules! bls_info {
     ($($arg:tt)*) => {
-        crate::log(&format!($($arg)*));
+        crate::bls_runtime_info(&format!($($arg)*));
     };
 }
 
 macro_rules! info {
     ($($arg:tt)*) => {
-        crate::log(&format!($($arg)*));
-    }
+        crate::console_log(&format!($($arg)*));
+    };
+}
+
+macro_rules! error {
+    ($($arg:tt)*) => {
+        crate::console_error(&format!($($arg)*));
+    };
 }

@@ -6,6 +6,7 @@ use deno_core::serde::Deserializer;
 use deno_core::serde_json;
 use deno_core::unsync::sync::AtomicFlag;
 use deno_terminal::colors;
+use prompter::init_tty_prompter;
 
 use std::fmt;
 use std::fmt::Debug;
@@ -19,10 +20,12 @@ pub use bls_permissions::*;
 
 
 #[derive(Clone, Debug)]
-pub struct PermissionsContainer(bls_permissions::BlsPermissionsContainer);
+pub struct PermissionsContainer(pub bls_permissions::BlsPermissionsContainer);
+
 
 impl PermissionsContainer {
     pub fn new(perms: Permissions) -> Self {
+        init_tty_prompter();
         init_debug_log_msg_func(|msg: &str| format!("{}", colors::bold(msg)));
         Self(BlsPermissionsContainer::new(perms))
     }

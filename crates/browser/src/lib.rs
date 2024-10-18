@@ -7,6 +7,7 @@ use bls_permissions::ModuleSpecifier;
 use bls_permissions::Permissions;
 use bls_permissions::Url;
 use once_cell::sync::Lazy;
+use prompter::init_browser_prompter;
 use wasm_bindgen::prelude::wasm_bindgen;
 pub use macros::*;
 
@@ -19,6 +20,7 @@ pub struct PermissionsContainer(BlsPermissionsContainer);
 
 impl PermissionsContainer {
     pub fn new(perms: Permissions) -> Self {
+        init_browser_prompter();
         Self(BlsPermissionsContainer::new(perms))
     }
 
@@ -176,14 +178,15 @@ static PERMSSIONSCONTAINER: Lazy<PermissionsContainer> = Lazy::new(|| {
 
 #[wasm_bindgen]
 pub fn init_permissions_prompt(b: bool) {
-    log!("init_permissions_prompt: {b}");
+    info!("init_permissions_prompt: {b}");
     *PERMSSIONSCONTAINER.0.0.lock() = if b {
         Permissions::none_with_prompt()
     } else {
-        Permissions::none_with_prompt()
+        Permissions::none_without_prompt()
     };
 }
 
+#[derive(Clone, Copy)]
 enum Code {
     Success = 0,
     Failed = -1,
@@ -197,23 +200,66 @@ impl Into<u32> for Code {
 }
 
 #[wasm_bindgen]
-pub fn check_read(path: &str, api_name: &str) -> u32 {
-    log!("check read: {path}");
+pub struct JsCode {
+    code: Code,
+    msg: Option<String>,
+}
+
+
+#[wasm_bindgen]
+impl JsCode {
+    #[wasm_bindgen(getter)]
+    pub fn is_success(&self) -> bool {
+        match self.code {
+            Code::Success => true,
+            _ => false,
+        }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn code(&self) -> i32 {
+        self.code as _
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn msg(&self) -> Option<String> {
+        self.msg.clone()
+    }
+
+    fn sucess() -> Self {
+        Self {
+            code: Code::Success,
+            msg: None
+        }
+    }
+
+    fn error<T: Into<String>>(code: Code, msg: T) -> Self {
+        Self {
+            code,
+            msg: Some(msg.into())
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn check_read(path: &str, api_name: &str) -> JsCode {
+    info!("check read: {path}");
     let path = PathBuf::from(path);
     if let Err(e) = PERMSSIONSCONTAINER.check_read(&path, api_name) {
-        log!("Error: {}", e);
-        Code::Success.into()
+        let msg = format!("{e}");
+        info!("Error: {msg}");
+        JsCode::error(Code::Failed, msg)
     } else {
-        Code::Failed.into()
+        JsCode::sucess()
     }
 }
 
 #[wasm_bindgen]
 pub fn check_write(path: &str, api_name: &str) -> u32 {
-    log!("check write: {path}");
+    info!("check write: {path}");
     let path = PathBuf::from(path);
     if let Err(e) = PERMSSIONSCONTAINER.check_write(&path, api_name) {
-        log!("Error: {}", e);
+        info!("Error: {}", e);
         Code::Success.into()
     } else {
         Code::Failed.into()
@@ -222,9 +268,9 @@ pub fn check_write(path: &str, api_name: &str) -> u32 {
 
 #[wasm_bindgen]
 pub fn check_env(env: &str) -> u32 {
-    log!("check env: {env}");
+    info!("check env: {env}");
     if let Err(e) = PERMSSIONSCONTAINER.check_env(env) {
-        log!("Error: {}", e);
+        info!("Error: {}", e);
         Code::Success.into()
     } else {
         Code::Failed.into()
@@ -234,7 +280,7 @@ pub fn check_env(env: &str) -> u32 {
 #[wasm_bindgen]
 pub fn check_net(net: &str) -> u32 {
     if let Err(e) = Url::from_str(net) {
-        log!("parameter {e}");
+        info!("parameter {e}");
     } else {
         return Code::ParameterError.into();
     }
