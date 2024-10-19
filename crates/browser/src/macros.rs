@@ -18,12 +18,12 @@ extern "C" {
 #[wasm_bindgen(module = "/module.js")]
 extern "C" {
     pub fn bls_runtime_input() -> String;
-    pub fn bls_runtime_info(info: &str);
+    pub fn bls_runtime_prompt_dlg_info(info: &str);
 }
 
-macro_rules! bls_info {
+macro_rules! bls_prompt_dlg_info {
     ($($arg:tt)*) => {
-        crate::bls_runtime_info(&format!($($arg)*));
+        crate::bls_runtime_prompt_dlg_info(&format!($($arg)*));
     };
 }
 

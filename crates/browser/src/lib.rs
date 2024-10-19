@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use bls_permissions::is_yield_error_class;
 use bls_permissions::AnyError;
 use bls_permissions::BlsPermissionsContainer;
