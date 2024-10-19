@@ -6,6 +6,8 @@ pub enum PromptResponse {
     Allow,
     Deny,
     AllowAll,
+    #[cfg(target_arch = "wasm32")]
+    Yield,
 }
 
 pub type PromptCallback = Box<dyn FnMut() + Send + Sync>;

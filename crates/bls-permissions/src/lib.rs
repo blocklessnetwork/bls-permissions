@@ -32,6 +32,8 @@ mod error;
 use error::custom_error;
 use error::type_error;
 use error::uri_error;
+#[cfg(target_arch = "wasm32")]
+use error::yield_error;
 
 mod prompter;
 pub use prompter::*;
@@ -51,6 +53,8 @@ pub enum PermissionState {
     #[default]
     Prompt = 2,
     Denied = 3,
+    #[cfg(target_arch = "wasm32")]
+    Yield = 4,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -88,7 +92,6 @@ macro_rules! error {
     };
 }
 
-
 static DEBUG_LOG_ENABLED: Lazy<bool> = Lazy::new(|| log::log_enabled!(log::Level::Debug));
 
 static DEBUG_LOG_MSG_FUNC: Mutex<Option<Box<dyn Fn(&str) -> String + 'static + Send + Sync>>> = Mutex::new(None);
@@ -118,6 +121,8 @@ impl fmt::Display for PermissionState {
             PermissionState::GrantedPartial => f.pad("granted-partial"),
             PermissionState::Prompt => f.pad("prompt"),
             PermissionState::Denied => f.pad("denied"),
+            #[cfg(target_arch = "wasm32")]
+            PermissionState::Yield => f.pad("yield"),
         }
     }
 }
@@ -206,8 +211,11 @@ impl PermissionState {
                         (Ok(()), true, true)
                     }
                     PromptResponse::Deny => (Err(Self::error(name, info)), true, false),
+                    #[cfg(target_arch = "wasm32")]
+                    PromptResponse::Yield => (Err(yield_error("yield.")), false, false),
                 }
             }
+            
             _ => (Err(Self::error(name, info)), false, false),
         }
     }
@@ -521,6 +529,10 @@ impl<T: Descriptor + Hash> UnaryPermission<T> {
             PromptResponse::AllowAll => {
                 self.insert_granted(None);
                 PermissionState::Granted
+            }
+            #[cfg(target_arch = "wasm32")]
+            PromptResponse::Yield => {
+                PermissionState::Yield
             }
         }
     }
@@ -1655,17 +1667,20 @@ impl UnitPermission {
 
     pub fn request(&mut self) -> PermissionState {
         if self.state == PermissionState::Prompt {
-            if PromptResponse::Allow
-                == permission_prompt(
-                    &format!("access to {}", self.description),
-                    self.name,
-                    Some("Deno.permissions.query()"),
-                    false,
-                )
-            {
+            let resp = permission_prompt(
+                &format!("access to {}", self.description),
+                self.name,
+                Some("Deno.permissions.query()"),
+                false,
+            );
+            if PromptResponse::Allow == resp {
                 self.state = PermissionState::Granted;
             } else {
                 self.state = PermissionState::Denied;
+                #[cfg(target_arch = "wasm32")]
+                if PromptResponse::Yield == resp {
+                    self.state = PermissionState::Yield;
+                }
             }
         }
         self.state

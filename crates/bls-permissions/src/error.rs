@@ -6,6 +6,8 @@ use std::{
 
 use anyhow::Error;
 
+pub const YIELD_CLASS: &str = "yield";
+
 /// Creates a new error with a caller-specified error class name and message.
 pub fn custom_error(class: &'static str, message: impl Into<Cow<'static, str>>) -> Error {
     CustomError {
@@ -33,6 +35,10 @@ pub fn invalid_hostname(hostname: &str) -> Error {
 
 pub fn uri_error(message: impl Into<Cow<'static, str>>) -> Error {
     custom_error("URIError", message)
+}
+
+pub fn yield_error(message: impl Into<Cow<'static, str>>) -> Error {
+    custom_error(YIELD_CLASS, message)
 }
 
 pub fn bad_resource(message: impl Into<Cow<'static, str>>) -> Error {

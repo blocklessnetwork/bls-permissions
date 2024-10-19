@@ -1,18 +1,12 @@
-use std::sync::Arc;
-use std::sync::Condvar;
-use std::sync::Mutex;
 use std::sync::Once;
-use std::time::Duration;
 
 use bls_permissions::bls_set_prompter;
 use bls_permissions::PermissionPrompter;
 use bls_permissions::PromptResponse;
 use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
-use once_cell::sync::Lazy;
-use wasm_bindgen::prelude::wasm_bindgen;
 use crate::bls_runtime_input as rt_input;
 
-const BLOCKED: &str = "cmd:blocked";
+const YIELD: &str = "cmd:yield";
 
 pub fn init_browser_prompter() {
     static BROWSERPROMPTER: Once = Once::new();
@@ -22,43 +16,11 @@ pub fn init_browser_prompter() {
     });
 }
 
-static COND_VAR: Lazy<Arc<(Mutex<bool>, Condvar)>> = Lazy::new(|| {
-    Arc::new((Mutex::new(false), Condvar::new()))
-}) ;
-
-#[wasm_bindgen]
-pub fn notify_input() {
-    let (lock, cvar) = &(**COND_VAR);
-    *lock.lock().unwrap() = false;
-    cvar.notify_all();
-}
-
 /// get input from browser. the js function will return value immediately
 /// so use condvar block the call.
 fn bls_runtime_input() -> String {
     let mut input = rt_input();
     input = input.to_lowercase();
-    if input == BLOCKED {
-        let (lock, cvar) = &(**COND_VAR);
-        let mut guard = lock.lock().unwrap();
-        *guard = false;
-        // keep the input get y or n.
-        while !*guard {
-            let sec = Duration::from_millis(50);
-            let result = cvar.wait_timeout(guard, sec).unwrap();
-            guard = result.0;
-            if result.1.timed_out() {
-                continue;
-            } else {
-                input = rt_input();
-                input = input.to_lowercase();
-                if input == BLOCKED {
-                    continue;
-                }
-                break;
-            }
-        }
-    }
     input
 }
 
@@ -86,6 +48,10 @@ impl PermissionPrompter for BrowserPrompter {
         };
         let resp = loop {
             let input = bls_runtime_input();
+            #[cfg(target_arch = "wasm32")]
+            if input == YIELD {
+                return PromptResponse::Yield;
+            }
             let bytes = input.as_bytes();
             match bytes[0] as char {
                 'y' | 'Y' => {
