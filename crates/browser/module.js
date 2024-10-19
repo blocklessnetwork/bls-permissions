@@ -13,7 +13,7 @@ let instance = new BlsRuntime();
 export function bls_runtime_input() {
     if (instance.prompt == null) {
         instance.show_prompter();
-        return "cmd:blocked";
+        return "cmd:yield";
     }
     return instance.prompt;
 }
