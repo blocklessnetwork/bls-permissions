@@ -255,6 +255,7 @@ macro_rules! error2jscode {
         if is_yield_error_class($e) {
             JsCode::jscode_yield()
         } else {
+            info!("Error: {}", $msg);
             JsCode::error(Code::Failed, $msg)
         }
     };
@@ -262,11 +263,9 @@ macro_rules! error2jscode {
 
 #[wasm_bindgen]
 pub fn check_read(path: &str, api_name: &str) -> JsCode {
-    info!("check read: {path}");
     let path = PathBuf::from(path);
     if let Err(e) = PERMSSIONSCONTAINER.check_read(&path, api_name) {
         let msg = format!("{e}");
-        info!("Error: {msg}");
         error2jscode!(&e, msg)
     } else {
         JsCode::sucess()
