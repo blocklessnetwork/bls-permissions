@@ -32,6 +32,7 @@ mod error;
 use error::custom_error;
 use error::type_error;
 use error::uri_error;
+pub use error::is_yield_error_class;
 #[cfg(target_arch = "wasm32")]
 use error::yield_error;
 

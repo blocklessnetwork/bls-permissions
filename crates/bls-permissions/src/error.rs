@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::Error;
 
-pub const YIELD_CLASS: &str = "yield";
+const YIELD_CLASS: &str = "yield";
 
 /// Creates a new error with a caller-specified error class name and message.
 pub fn custom_error(class: &'static str, message: impl Into<Cow<'static, str>>) -> Error {
@@ -80,6 +80,12 @@ impl std::error::Error for CustomError {}
 
 /// If this error was crated with `custom_error()`, return the specified error
 /// class name. In all other cases this function returns `None`.
+#[inline]
 pub fn get_custom_error_class(error: &Error) -> Option<&'static str> {
     error.downcast_ref::<CustomError>().map(|e| e.class)
+}
+
+#[inline(always)]
+pub fn is_yield_error_class(error: &Error) -> bool {
+    get_custom_error_class(error).map(|s| s == YIELD_CLASS).unwrap_or(false)
 }

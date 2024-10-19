@@ -2,9 +2,9 @@ class BlsRuntime {
     constructor() {
         this.info_cache = [];
         this.prompt = null;
+        this.yield = null;
     }
     show_prompter() {
-        
     }
 }
 

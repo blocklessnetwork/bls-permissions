@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use bls_permissions::is_yield_error_class;
 use bls_permissions::AnyError;
 use bls_permissions::BlsPermissionsContainer;
 use bls_permissions::ModuleSpecifier;
@@ -189,6 +190,7 @@ pub fn init_permissions_prompt(b: bool) {
 #[derive(Clone, Copy)]
 enum Code {
     Success = 0,
+    Yield = 255,
     Failed = -1,
     ParameterError = -2,
 }
@@ -233,12 +235,29 @@ impl JsCode {
         }
     }
 
+    fn jscode_yield() -> Self {
+        Self {
+            code: Code::Yield,
+            msg: None,
+        }
+    }
+
     fn error<T: Into<String>>(code: Code, msg: T) -> Self {
         Self {
             code,
             msg: Some(msg.into())
         }
     }
+}
+
+macro_rules! error2jscode {
+    ($e: expr, $msg: expr) => {
+        if is_yield_error_class($e) {
+            JsCode::jscode_yield()
+        } else {
+            JsCode::error(Code::Failed, $msg)
+        }
+    };
 }
 
 #[wasm_bindgen]
@@ -248,7 +267,7 @@ pub fn check_read(path: &str, api_name: &str) -> JsCode {
     if let Err(e) = PERMSSIONSCONTAINER.check_read(&path, api_name) {
         let msg = format!("{e}");
         info!("Error: {msg}");
-        JsCode::error(Code::Failed, msg)
+        error2jscode!(&e, msg)
     } else {
         JsCode::sucess()
     }
@@ -260,9 +279,13 @@ pub fn check_write(path: &str, api_name: &str) -> u32 {
     let path = PathBuf::from(path);
     if let Err(e) = PERMSSIONSCONTAINER.check_write(&path, api_name) {
         info!("Error: {}", e);
-        Code::Success.into()
+        if is_yield_error_class(&e) {
+            Code::Yield.into()
+        } else {
+            Code::Failed.into()
+        }
     } else {
-        Code::Failed.into()
+        Code::Success.into()
     }
 }
 
@@ -271,20 +294,14 @@ pub fn check_env(env: &str) -> u32 {
     info!("check env: {env}");
     if let Err(e) = PERMSSIONSCONTAINER.check_env(env) {
         info!("Error: {}", e);
+        if is_yield_error_class(&e) {
+            Code::Yield.into()
+        } else {
+            Code::Failed.into()
+        }
+    } else {
         Code::Success.into()
-    } else {
-        Code::Failed.into()
     }
-}
-
-#[wasm_bindgen]
-pub fn check_net(net: &str) -> u32 {
-    if let Err(e) = Url::from_str(net) {
-        info!("parameter {e}");
-    } else {
-        return Code::ParameterError.into();
-    }
-    Code::Success.into()
 }
 
 
