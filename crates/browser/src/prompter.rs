@@ -8,7 +8,7 @@ use bls_permissions::PromptResponse;
 use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
 use bls_permissions::PERMISSION_EMOJI;
 use serde::Serialize;
-use crate::bls_runtime_input as rt_input;
+use crate::blsrt_get_input as get_input;
 use super::html::Html;
 
 const YIELD: &str = "cmd:yield";
@@ -23,8 +23,8 @@ pub fn init_browser_prompter() {
 
 /// get input from browser. the js function will return value immediately
 /// so use condvar block the call.
-fn bls_runtime_input() -> String {
-    let mut input = rt_input();
+fn blsrt_get_input() -> String {
+    let mut input = get_input();
     input = input.to_lowercase();
     input
 }
@@ -101,7 +101,7 @@ impl PermissionPrompter for BrowserPrompter {
             bls_prompt_dlg_info!("{prompt_msg}");
         }
         let resp = loop {
-            let input = bls_runtime_input();
+            let input = blsrt_get_input();
             #[cfg(target_arch = "wasm32")]
             if input == YIELD {
                 return PromptResponse::Yield;

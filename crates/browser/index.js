@@ -1,12 +1,12 @@
-import {bls_check_read, set_prompter_dialog_class} from "./permissions.js"
+import {blsCheckRead, setPromptDialogClass} from "./permissions.js"
 
+//replace default dailog.
 class MyDialog {
     constructor(blsRuntime) {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
-        promptDlg.style.color = "red";
         let msg = document.createElement("div");
-        
+        promptDlg.style.color = "red";
         promptDlg.appendChild(msg);
         let y = document.createElement("button");
         y.innerText = "y";
@@ -16,20 +16,20 @@ class MyDialog {
         buttons.appendChild(y);
         let that = this;
         y.onclick = function() {
-            blsRuntime.set_input("y");
+            blsRuntime.setInput("y");
             that.open(false);
         };
         let n = document.createElement("button");
         n.innerText = "n";
         n.onclick = function() {
-            blsRuntime.set_input("n");
+            blsRuntime.setInput("n");
             that.open(false);
         };
         buttons.appendChild(n);
         let a = document.createElement("button");
         a.innerText = "A";
         a.onclick = function() {
-            blsRuntime.set_input("A");
+            blsRuntime.setInput("A");
             that.open(false);
         };
         buttons.appendChild(a);
@@ -40,14 +40,46 @@ class MyDialog {
     open(b) {
         this.promptDlgElm.open = b;
     }
-    set_msg(b) {
-        this.msgElm.innerHTML = b
+    setMsg(msg) {
+        this.msgElm.innerHTML = msg;
     }
 }
 
-set_prompter_dialog_class(MyDialog);
+class BlsRuntime {
+    constructor() {
+        this.input = null;
+        this.yield = null;
+        this.promptDlg = null;
+        this.dialogMsg = "";
+        this.isYield = false;
+    }
+    setInput(b) {
+        if (b != 'y' && b != 'Y' && b != 'n' && b != 'N' && b != 'A') {
+            throw new "input must be y,n,A";
+        }
+        this.input = b;
+    }
+    setDialogMsg(msg) {
+        this.dialogMsg = msg;
+        if (this.promptDlg) {
+            this.promptDlg.setMsg(msg);
+        }
+    }
+    showDialog() {
+        if (this.promptDlg == null) {
+            let DialogClass = window.BlsPrompterDialogClass||DefaultDialog;
+            this.promptDlg = new DialogClass(this);
+            if (this.dialogMsg) {
+                this.promptDlg.setMsg(this.dialogMsg);
+            }
+        }
+        this.promptDlg.open(true);
+    }
+}
 
-bls_check_read("/test.o", "permission").then((rs) =>{
+setPromptDialogClass(MyDialog);
+
+blsCheckRead("/test.o", "permission").then((rs) =>{
     console.log(rs);
     let {code, msg} = rs;
     console.log(`code:${code} msg:${msg}` );

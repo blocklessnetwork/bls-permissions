@@ -13,20 +13,20 @@ class DefaultDialog {
         buttons.appendChild(y);
         let that = this;
         y.onclick = function() {
-            blsRuntime.set_input("y");
+            blsRuntime.setInput("y");
             that.open(false);
         };
         let n = document.createElement("button");
         n.innerText = "n";
         n.onclick = function() {
-            blsRuntime.set_input("n");
+            blsRuntime.setInput("n");
             that.open(false);
         };
         buttons.appendChild(n);
         let a = document.createElement("button");
         a.innerText = "A";
         a.onclick = function() {
-            blsRuntime.set_input("A");
+            blsRuntime.setInput("A");
             that.open(false);
         };
         buttons.appendChild(a);
@@ -37,58 +37,58 @@ class DefaultDialog {
     open(b) {
         this.promptDlgElm.open = b;
     }
-    set_msg(msg) {
+    setMsg(msg) {
         this.msgElm.innerHTML = msg;
     }
 }
 
 class BlsRuntime {
     constructor() {
-        this.info_cache = [];
         this.input = null;
         this.yield = null;
-        this.prompt_dlg = null;
-        this.is_yielding = false;
+        this.promptDlg = null;
+        this.dialogMsg = "";
+        this.isYield = false;
     }
-    set_input(b) {
+    setInput(b) {
         if (b != 'y' && b != 'Y' && b != 'n' && b != 'N' && b != 'A') {
             throw new "input must be y,n,A";
         }
         this.input = b;
     }
-    set_dialog_msg(msg) {
-        this.dialog_msg = msg;
-        if (this.prompt_dlg) {
-            this.prompt_dlg.set_msg(msg);
+    setDialogMsg(msg) {
+        this.dialogMsg = msg;
+        if (this.promptDlg) {
+            this.promptDlg.setMsg(msg);
         }
     }
-    show_prompter() {
-        if (this.prompt_dlg == null) {
+    showDialog() {
+        if (this.promptDlg == null) {
             let DialogClass = window.BlsPrompterDialogClass||DefaultDialog;
-            this.prompt_dlg = new DialogClass(this);
-            if (this.dialog_msg) {
-                this.prompt_dlg.set_msg(this.dialog_msg);
+            this.promptDlg = new DialogClass(this);
+            if (this.dialogMsg) {
+                this.promptDlg.setMsg(this.dialogMsg);
             }
         }
-        this.prompt_dlg.open(true);
+        this.promptDlg.open(true);
     }
 }
 
 let instance = new BlsRuntime();
 
-export function bls_runtime_input() {
+export function blsrtGetInput() {
     if (instance.input == null) {
-        instance.is_yielding = true;
-        instance.show_prompter();
+        instance.isYield = true;
+        instance.showDialog();
         return "cmd:yield";
     }
-    instance.is_yielding = false;
+    instance.isYield = false;
     return instance.input;
 }
 
-export function bls_runtime_prompt_dlg_info(s) {
-    if (!instance.is_yielding) {
+export function blsrtSetPromptDlgInfo(s) {
+    if (!instance.isYield) {
         let obj = JSON.parse(s);
-        instance.set_dialog_msg(obj.dlg_html);
+        instance.setDialogMsg(obj['dlg_html']);
     }
 }

@@ -3,8 +3,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 extern "C" {
-    type Class;
-
     #[wasm_bindgen(js_namespace = console, js_name = log)]
     pub fn console_log(s: &str);
 
@@ -17,13 +15,15 @@ extern "C" {
 
 #[wasm_bindgen(module = "/module.js")]
 extern "C" {
-    pub fn bls_runtime_input() -> String;
-    pub fn bls_runtime_prompt_dlg_info(info: &str);
+    #[wasm_bindgen(js_name = "blsrtGetInput")]
+    pub fn blsrt_get_input() -> String;
+    #[wasm_bindgen(js_name = "blsrtSetPromptDlgInfo")]
+    pub fn blsrt_set_prompt_dlg_info(info: &str);
 }
 
 macro_rules! bls_prompt_dlg_info {
     ($($arg:tt)*) => {
-        crate::bls_runtime_prompt_dlg_info(&format!($($arg)*));
+        crate::blsrt_set_prompt_dlg_info(&format!($($arg)*));
     };
 }
 

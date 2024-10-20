@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
-use bls_permissions::is_yield_error_class;
 use bls_permissions::AnyError;
+use bls_permissions::is_yield_error_class;
 use bls_permissions::BlsPermissionsContainer;
 use bls_permissions::ModuleSpecifier;
 use bls_permissions::Permissions;
@@ -231,7 +231,7 @@ impl JsCode {
     fn sucess() -> Self {
         Self {
             code: Code::Success,
-            msg: None
+            msg: Some("success".to_string()),
         }
     }
 
