@@ -1,9 +1,12 @@
+use std::fmt::Write;
 use std::sync::Once;
 
 use bls_permissions::bls_set_prompter;
+use bls_permissions::is_standalone;
 use bls_permissions::PermissionPrompter;
 use bls_permissions::PromptResponse;
 use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
+use bls_permissions::PERMISSION_EMOJI;
 use serde::Serialize;
 use crate::bls_runtime_input as rt_input;
 
@@ -31,6 +34,7 @@ struct PromptMsg<'a> {
     is_unary: bool,
     name: &'a str,
     message: &'a str,
+    dlg_html: &'a str,
     opts: &'a str,
 }
 
@@ -57,9 +61,38 @@ impl PermissionPrompter for BrowserPrompter {
             "[y/n] (y = yes, allow; n = no, deny)".to_string()
         };
         {
+            let mut output = String::new();
+            write!(&mut output, "<pre>").unwrap();
+            write!(&mut output, "┏ {PERMISSION_EMOJI}  ").unwrap();
+            write!(&mut output, "{}", "bls-runtime requests ").unwrap();
+            write!(&mut output, "{}", message).unwrap();
+            writeln!(&mut output, "{}", ".").unwrap();
+            if let Some(api_name) = api_name.clone() {
+                writeln!(
+                    &mut output,
+                    "┠─ Requested by `{}` API.",
+                    api_name
+                )
+                .unwrap();
+            }
+            let msg = format!(
+                "Learn more at: {}",
+                &format!("https://https://blockless.network/docs/--allow-{}", name)
+            );
+            writeln!(&mut output, "┠─ {}", &msg).unwrap();
+            let msg = if is_standalone() {
+                format!("Specify the required permissions during compile time using `deno compile --allow-{name}`.")
+            } else {
+                format!("Run again with --allow-{name} to bypass this prompt.")
+            };
+            writeln!(&mut output, "┠─ {}", &msg).unwrap();
+            write!(&mut output, "┗ {}", "Allow?").unwrap();
+            write!(&mut output, " {opts}  ").unwrap();
+            write!(&mut output, "</pre>").unwrap();
             let prompt_msg = serde_json::to_string(&PromptMsg{
                 api_name: api_name,
                 message,
+                dlg_html: &output,
                 name,
                 opts: &opts,
                 is_unary,

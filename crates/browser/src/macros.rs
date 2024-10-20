@@ -33,6 +33,7 @@ macro_rules! info {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! error {
     ($($arg:tt)*) => {
         crate::console_error(&format!($($arg)*));

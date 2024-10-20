@@ -77,7 +77,7 @@ extern "C" {
     pub fn bls_runtime_prompter() -> String;
 }
 
-#[allow(dead_code)]
+#[allow(unused_macros)]
 macro_rules! info {
     ($($arg:tt)*) => {
         #[cfg(target_arch = "wasm32")]
@@ -85,7 +85,7 @@ macro_rules! info {
     };
 }
 
-#[allow(dead_code)]
+#[allow(unused_macros)]
 macro_rules! error {
     ($($arg:tt)*) => {
         #[cfg(target_arch = "wasm32")]
