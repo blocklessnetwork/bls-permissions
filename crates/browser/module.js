@@ -1,4 +1,4 @@
-class DefaultDlg {
+class DefaultDialog {
     constructor(blsRuntime) {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
@@ -37,8 +37,8 @@ class DefaultDlg {
     open(b) {
         this.promptDlgElm.open = b;
     }
-    set_msg(b) {
-        this.msgElm.innerHTML = b
+    set_msg(msg) {
+        this.msgElm.innerHTML = msg;
     }
 }
 
@@ -64,7 +64,8 @@ class BlsRuntime {
     }
     show_prompter() {
         if (this.prompt_dlg == null) {
-            this.prompt_dlg = new DefaultDlg(this);
+            let DialogClass = window.BlsPrompterDialogClass||DefaultDialog;
+            this.prompt_dlg = new DialogClass(this);
             if (this.dialog_msg) {
                 this.prompt_dlg.set_msg(this.dialog_msg);
             }

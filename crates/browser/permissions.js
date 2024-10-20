@@ -22,6 +22,14 @@ function yield_callback(callback) {
     });
 }
 
+/// replace the default prometer dialog.
+export function set_prompter_dialog_class(clz) {
+    if (clz == null) {
+        throw "invalid prompter dialog class."
+    }
+    window.BlsPrompterDialogClass = clz;
+}
+
 export async function bls_check_read(path, urlName) {
     let ret = await yield_callback(() => {
         return check_read(path, urlName);
