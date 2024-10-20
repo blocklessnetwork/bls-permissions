@@ -34,6 +34,28 @@ class DefaultDialog {
         this.msgElm = msg;
         this.promptDlgElm = promptDlg;
         document.body.appendChild(promptDlg);
+        this.css();
+    }
+    css() {
+        let style = document.querySelector('style.promptDlg')
+        if (style == null) {
+            style = document.createElement('style');
+            style.innerHTML = `
+            dialog.promptDlg {
+                font-size:15px;
+            }
+            dialog.promptDlg .buttons button {
+                margin-left: 3px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            dialog.promptDlg .buttons {
+                margin-top: 5px;
+            }    
+            `;
+            document.head.appendChild(style);
+        }
+
     }
     open(b) {
         this.promptDlgElm.open = b;

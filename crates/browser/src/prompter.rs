@@ -63,7 +63,7 @@ impl PermissionPrompter for BrowserPrompter {
         };
         {
             let mut output = String::new();
-            write!(&mut output, "<div style='text-align: left;line-height:100%; font-size:15px'>").unwrap();
+            write!(&mut output, "<div style='text-align: left;line-height:100%;'>").unwrap();
             write!(&mut output, "┏ {} ", Html::span_color("yellow", PERMISSION_EMOJI)).unwrap();
             write!(&mut output, "{}", Html::bold("bls-runtime requests ")).unwrap();
             write!(&mut output, "{}", Html::bold(message)).unwrap();

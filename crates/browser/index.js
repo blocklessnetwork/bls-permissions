@@ -5,14 +5,14 @@ class MyDialog {
     constructor(blsRuntime) {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
-        promptDlg.className = "promptDlg";
         let msg = document.createElement("div");
-        promptDlg.style.color = "red";
+        promptDlg.className = "promptDlg";
         promptDlg.appendChild(msg);
         let y = document.createElement("button");
         y.innerText = "y";
         let buttons = document.createElement("div");
         promptDlg.appendChild(buttons);
+        buttons.className = "buttons";
         buttons.style.textAlign = "center";
         buttons.appendChild(y);
         let that = this;
@@ -37,6 +37,29 @@ class MyDialog {
         this.msgElm = msg;
         this.promptDlgElm = promptDlg;
         document.body.appendChild(promptDlg);
+        this.css();
+    }
+    css() {
+        let style = document.querySelector('style.promptDlg')
+        if (style == null) {
+            style = document.createElement('style');
+            style.innerHTML = `
+            dialog.promptDlg {
+                font-size:15px;
+                color:red;
+            }
+            dialog.promptDlg .buttons {
+                margin-top: 5px;
+            }
+            dialog.promptDlg .buttons button {
+                margin-left: 3px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            `;
+            document.head.appendChild(style);
+        }
+
     }
     open(b) {
         this.promptDlgElm.open = b;
