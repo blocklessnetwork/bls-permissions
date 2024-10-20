@@ -19,11 +19,23 @@ extern "C" {
     pub fn blsrt_get_input() -> String;
     #[wasm_bindgen(js_name = "blsRuntimeSetPromptDlgInfo")]
     pub fn blsrt_set_prompt_dlg_info(info: &str);
+
+    #[wasm_bindgen(js_name = "blsRuntimeShowTips")]
+    pub fn blsrt_show_tips(info: &str, is_success: bool);
 }
 
 macro_rules! bls_prompt_dlg_info {
     ($($arg:tt)*) => {
         crate::blsrt_set_prompt_dlg_info(&format!($($arg)*));
+    };
+}
+
+macro_rules! blsrt_show_tips {
+    (success: $($arg:tt)*) => {
+        crate::blsrt_show_tips(&format!($($arg)*), true);
+    };
+    (fail: $($arg:tt)*) => {
+        crate::blsrt_show_tips(&format!($($arg)*), false);
     };
 }
 

@@ -37,6 +37,14 @@ export function setPromptDialogClass(clz) {
     window.BlsPrompterDialogClass = clz;
 }
 
+/// replace the default prometer dialog.
+export function setTipsClass(clz) {
+    if (clz == null) {
+        throw "invalid tips class."
+    }
+    window.BlsTipsClass = clz;
+}
+
 export function setTipClass(clz) {
     if (clz == null) {
         throw "invalid tip class."

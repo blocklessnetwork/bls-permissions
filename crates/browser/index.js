@@ -5,6 +5,7 @@ class MyDialog {
     constructor(blsRuntime) {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
+        promptDlg.className = "promptDlg";
         let msg = document.createElement("div");
         promptDlg.style.color = "red";
         promptDlg.appendChild(msg);

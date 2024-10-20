@@ -3,12 +3,13 @@ class DefaultDialog {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
         let msg = document.createElement("div");
-        
+        promptDlg.className = "promptDlg";
         promptDlg.appendChild(msg);
         let y = document.createElement("button");
         y.innerText = "y";
         let buttons = document.createElement("div");
         promptDlg.appendChild(buttons);
+        buttons.className = "buttons";
         buttons.style.textAlign = "center";
         buttons.appendChild(y);
         let that = this;
@@ -42,6 +43,65 @@ class DefaultDialog {
     }
 }
 
+class DefaultTips {
+    css() {
+        let style = document.head.querySelector("style.blsTips");
+        if (style == null) {
+            let style = document.createElement("style");
+            style.className = "blsTips";
+            style.innerHTML = `
+            div.blsTips {
+                position:absolute;
+                width: 300px;
+                min-height: 35px;
+                right: 10px;
+                top: 10px;
+                padding-left:10px;
+                animation: hidetip 2.5s 1;
+                padding-top: 5px;
+                border-radius: 8px;
+            }
+            .successTips {
+                background-color:darkgreen;
+                color: white;
+            }
+            .failTips {
+                background-color:darkred;
+                color: white;
+            }
+            @keyframes hidetip {
+                0% {
+                    opacity: 1;
+                    top: 10px;
+                    display: block;
+                }
+                50% {
+                    opacity: 0.7;
+                }
+                100% {
+                    top: 100px;
+                    opacity: 0;
+                    display: none;
+                }
+            }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    show(text, flag) {
+        this.css();
+        let div = document.createElement("div");
+        flag = flag||false;
+        div.className = "blsTips " + (flag?"successTips":"failTips") ;
+        console.log(div.className);
+        div.innerHTML = text;
+        document.body.append(div);
+        div.addEventListener("animationend", () => {
+            document.body.removeChild(div);
+        },false);
+    }
+}
+
 class BlsRuntime {
     constructor() {
         this.input = null;
@@ -72,6 +132,11 @@ class BlsRuntime {
         }
         this.promptDlg.open(true);
     }
+    showTips(text, flag) {
+        let TipsClass = window.BlsTipsClass||DefaultTips;
+        let tips = new TipsClass();
+        tips.show(text, flag);
+    }
 }
 
 let instance = new BlsRuntime();
@@ -91,4 +156,7 @@ export function blsRuntimeSetPromptDlgInfo(s) {
         let obj = JSON.parse(s);
         instance.setDialogMsg(obj['dlg_html']);
     }
+}
+export function blsRuntimeShowTips(text, flag) {
+    instance.showTips(text, flag);
 }

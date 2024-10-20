@@ -110,21 +110,21 @@ impl PermissionPrompter for BrowserPrompter {
             match bytes[0] as char {
                 'y' | 'Y' => {
                     let msg = format!("Granted {message} access.");
-                    info!("✅ {msg}");
+                    blsrt_show_tips!(success: "✅ {msg}");
                     break PromptResponse::Allow;
                 }
                 'n' | 'N' | '\x1b' => {
                     let msg = format!("Denied {message}.");
-                    info!("❌ {msg}");
+                    blsrt_show_tips!(fail: "❌ {msg}");
                     break PromptResponse::Deny;
                 }
                 'A' | 'a'  if is_unary => {
                     let msg = format!("Granted all {name} access.");
-                    info!("✅ {msg}");
+                    blsrt_show_tips!(success: "✅ {msg}");
                     break PromptResponse::AllowAll;
                 }
                 _ => {
-                    info!("┗ Unrecognized option. Allow? {opts} > ");
+                    blsrt_show_tips!(fail:"┗ Unrecognized option. Allow? {opts} > ");
                     #[cfg(target_arch = "wasm32")]
                     break PromptResponse::Yield;
                 }
