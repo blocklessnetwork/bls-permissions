@@ -60,6 +60,7 @@ class DefaultTips {
                 animation: hidetip 2.5s 1;
                 padding-top: 5px;
                 border-radius: 8px;
+                font-size: 13px;
             }
             .successTips {
                 background-color:darkgreen;
