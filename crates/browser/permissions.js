@@ -1,4 +1,6 @@
-import { init_permissions_prompt, check_read } from './pkg';
+import { 
+    init_permissions_prompt, check_read, check_env, check_write,check_net, check_net_url 
+} from './pkg';
 
 init_permissions_prompt(true);
 
@@ -35,8 +37,39 @@ export function setPromptDialogClass(clz) {
     window.BlsPrompterDialogClass = clz;
 }
 
-export async function blsCheckRead(path, urlName) {
+export function setTipClass(clz) {
+    if (clz == null) {
+        throw "invalid tip class."
+    }
+    window.BlsTipClass = clz;
+}
+
+export async function blsCheckRead(path, apiName) {
     return await yieldCallback(() => {
-        return check_read(path, urlName);
+        return check_read(path, apiName);
+    });
+}
+
+export async function blsCheckWrite(path, apiName) {
+    return await yieldCallback(() => {
+        return check_write(path, apiName);
+    });
+}
+
+export async function blsCheckNet(net, apiName) {
+    return await yieldCallback(() => {
+        return check_net(net, apiName);
+    });
+}
+
+export async function blsCheckNetUrl(url, apiName) {
+    return await yieldCallback(() => {
+        return check_net_url(url, apiName);
+    });
+}
+
+export async function blsEnv(env, apiName) {
+    return await yieldCallback(() => {
+        return check_env(env, apiName);
     });
 }

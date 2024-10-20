@@ -155,7 +155,7 @@ impl PermissionsContainer {
 
     #[inline(always)]
     pub fn check_net<T: AsRef<str>>(
-        &mut self,
+        &self,
         host: &(T, Option<u16>),
         api_name: &str,
     ) -> Result<(), AnyError> {
@@ -228,7 +228,7 @@ impl JsCode {
         self.msg.clone()
     }
 
-    fn sucess() -> Self {
+    fn success() -> Self {
         Self {
             code: Code::Success,
             msg: Some("success".to_string()),
@@ -250,57 +250,48 @@ impl JsCode {
     }
 }
 
-macro_rules! error2jscode {
-    ($e: expr, $msg: expr) => {
-        if is_yield_error_class($e) {
-            JsCode::jscode_yield()
-        } else {
-            info!("Error: {}", $msg);
-            JsCode::error(Code::Failed, $msg)
-        }
-    };
-}
-
 #[wasm_bindgen]
 pub fn check_read(path: &str, api_name: &str) -> JsCode {
     let path = PathBuf::from(path);
-    if let Err(e) = PERMSSIONSCONTAINER.check_read(&path, api_name) {
-        let msg = format!("{e}");
-        error2jscode!(&e, msg)
-    } else {
-        JsCode::sucess()
-    }
+    permission_check!(PERMSSIONSCONTAINER.check_read(&path, api_name))
 }
 
 #[wasm_bindgen]
-pub fn check_write(path: &str, api_name: &str) -> u32 {
+pub fn check_write(path: &str, api_name: &str) -> JsCode {
     info!("check write: {path}");
     let path = PathBuf::from(path);
-    if let Err(e) = PERMSSIONSCONTAINER.check_write(&path, api_name) {
-        info!("Error: {}", e);
-        if is_yield_error_class(&e) {
-            Code::Yield.into()
-        } else {
-            Code::Failed.into()
-        }
-    } else {
-        Code::Success.into()
-    }
+    permission_check!(PERMSSIONSCONTAINER.check_write(&path, api_name))
 }
 
 #[wasm_bindgen]
-pub fn check_env(env: &str) -> u32 {
+pub fn check_env(env: &str) -> JsCode {
     info!("check env: {env}");
-    if let Err(e) = PERMSSIONSCONTAINER.check_env(env) {
-        info!("Error: {}", e);
-        if is_yield_error_class(&e) {
-            Code::Yield.into()
-        } else {
-            Code::Failed.into()
-        }
-    } else {
-        Code::Success.into()
-    }
+    permission_check!(PERMSSIONSCONTAINER.check_env(env))
 }
 
+#[wasm_bindgen]
+pub fn check_net(net: &str, api_name: &str) -> JsCode {
+    info!("check net: {net}");
+    let net= match net.rsplit_once(":") {
+        Some((a, p)) => {
+            let port: Result<u16, _> = p.parse();
+            let port = match port {
+                Ok(port) => Some(port),
+                Err(_) => return JsCode::error(Code::ParameterError, &format!("{net} parameter is error.")),
+            };
+            (a, port)
+        },
+        None => (net, None),
+    };
+    permission_check!(PERMSSIONSCONTAINER.check_net(&net, api_name))
+}
 
+#[wasm_bindgen]
+pub fn check_net_url(url: &str, api_name: &str) -> JsCode {
+    info!("check net url: {url}");
+    let url = match url.parse() {
+        Ok(url) => url,
+        Err(_) => return JsCode::error(Code::ParameterError, &format!("{url} parameter is error.")),
+    };
+    permission_check!(PERMSSIONSCONTAINER.check_net_url(&url, api_name))
+}

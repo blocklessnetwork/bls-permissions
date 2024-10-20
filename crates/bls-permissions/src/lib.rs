@@ -2099,7 +2099,7 @@ impl BlsPermissionsContainer {
 
     #[inline(always)]
     pub fn check_net<T: AsRef<str>>(
-        &mut self,
+        &self,
         host: &(T, Option<u16>),
         api_name: &str,
     ) -> Result<(), AnyError> {

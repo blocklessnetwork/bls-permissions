@@ -76,7 +76,7 @@ class BlsRuntime {
 
 let instance = new BlsRuntime();
 
-export function blsrtGetInput() {
+export function blsRuntimeGetInput() {
     if (instance.input == null) {
         instance.isYield = true;
         instance.showDialog();
@@ -86,7 +86,7 @@ export function blsrtGetInput() {
     return instance.input;
 }
 
-export function blsrtSetPromptDlgInfo(s) {
+export function blsRuntimeSetPromptDlgInfo(s) {
     if (!instance.isYield) {
         let obj = JSON.parse(s);
         instance.setDialogMsg(obj['dlg_html']);

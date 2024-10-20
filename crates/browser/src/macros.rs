@@ -15,9 +15,9 @@ extern "C" {
 
 #[wasm_bindgen(module = "/module.js")]
 extern "C" {
-    #[wasm_bindgen(js_name = "blsrtGetInput")]
+    #[wasm_bindgen(js_name = "blsRuntimeGetInput")]
     pub fn blsrt_get_input() -> String;
-    #[wasm_bindgen(js_name = "blsrtSetPromptDlgInfo")]
+    #[wasm_bindgen(js_name = "blsRuntimeSetPromptDlgInfo")]
     pub fn blsrt_set_prompt_dlg_info(info: &str);
 }
 
@@ -37,5 +37,32 @@ macro_rules! info {
 macro_rules! error {
     ($($arg:tt)*) => {
         crate::console_error(&format!($($arg)*));
+    };
+}
+
+macro_rules! error2jscode {
+    ($e: expr, $msg: expr) => {
+        if is_yield_error_class($e) {
+            JsCode::jscode_yield()
+        } else {
+            info!("Error: {}", $msg);
+            JsCode::error(Code::Failed, $msg)
+        }
+    };
+    ($e: expr) => {
+        {
+            let msg = format!("{}", $e);
+            error2jscode!($e, msg)
+        }
+    }
+}
+
+macro_rules! permission_check {
+    ($e: expr) => {
+        if let Err(e) = $e {
+            error2jscode!(&e)
+        } else {
+            JsCode::success()
+        }
     };
 }
