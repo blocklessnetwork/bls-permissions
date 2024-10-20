@@ -13,6 +13,7 @@ pub use macros::*;
 
 #[macro_use]
 mod macros;
+mod html;
 mod prompter;
 
 #[derive(Clone, Debug)]
