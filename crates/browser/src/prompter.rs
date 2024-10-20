@@ -118,13 +118,15 @@ impl PermissionPrompter for BrowserPrompter {
                     info!("❌ {msg}");
                     break PromptResponse::Deny;
                 }
-                'A' if is_unary => {
+                'A' | 'a'  if is_unary => {
                     let msg = format!("Granted all {name} access.");
                     info!("✅ {msg}");
                     break PromptResponse::AllowAll;
                 }
                 _ => {
                     info!("┗ Unrecognized option. Allow? {opts} > ");
+                    #[cfg(target_arch = "wasm32")]
+                    break PromptResponse::Yield;
                 }
             }
         };

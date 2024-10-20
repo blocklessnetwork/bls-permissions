@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 pub struct Html;
 
 impl Html {

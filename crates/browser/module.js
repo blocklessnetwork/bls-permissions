@@ -3,32 +3,33 @@ class DefaultDlg {
         this.blsRuntime = blsRuntime;
         let promptDlg = document.createElement("dialog");
         let msg = document.createElement("div");
-        if (this.blsRuntime.dialog_msg) {
-            msg.innerHTML = this.blsRuntime.dialog_msg;
-        }
+        
         promptDlg.appendChild(msg);
         let y = document.createElement("button");
         y.innerText = "y";
-        promptDlg.appendChild(y);
+        let buttons = document.createElement("div");
+        promptDlg.appendChild(buttons);
+        buttons.style.textAlign = "center";
+        buttons.appendChild(y);
         let that = this;
         y.onclick = function() {
-            blsRuntime.input = "y";
+            blsRuntime.set_input("y");
             that.open(false);
         };
         let n = document.createElement("button");
         n.innerText = "n";
         n.onclick = function() {
-            blsRuntime.input = "n";
+            blsRuntime.set_input("n");
             that.open(false);
         };
-        promptDlg.appendChild(n);
+        buttons.appendChild(n);
         let a = document.createElement("button");
         a.innerText = "A";
         a.onclick = function() {
-            blsRuntime.input = "a";
+            blsRuntime.set_input("A");
             that.open(false);
         };
-        promptDlg.appendChild(a);
+        buttons.appendChild(a);
         this.msgElm = msg;
         this.promptDlgElm = promptDlg;
         document.body.appendChild(promptDlg);
@@ -49,6 +50,12 @@ class BlsRuntime {
         this.prompt_dlg = null;
         this.is_yielding = false;
     }
+    set_input(b) {
+        if (b != 'y' && b != 'Y' && b != 'n' && b != 'N' && b != 'A') {
+            throw new "input must be y,n,A";
+        }
+        this.input = b;
+    }
     set_dialog_msg(msg) {
         this.dialog_msg = msg;
         if (this.prompt_dlg) {
@@ -58,6 +65,9 @@ class BlsRuntime {
     show_prompter() {
         if (this.prompt_dlg == null) {
             this.prompt_dlg = new DefaultDlg(this);
+            if (this.dialog_msg) {
+                this.prompt_dlg.set_msg(this.dialog_msg);
+            }
         }
         this.prompt_dlg.open(true);
     }
