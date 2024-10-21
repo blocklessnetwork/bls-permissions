@@ -25,3 +25,6 @@ which.workspace = true
 
 [dev.dependencies]
 serde.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["commapi", "knownfolders", "mswsock", "objbase", "psapi", "shlobj", "tlhelp32", "winbase", "winerror", "winuser", "winsock2", "processenv", "wincon", "wincontypes"] }
