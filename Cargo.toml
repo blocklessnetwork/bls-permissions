@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "crates/deno",
-    "crates/browser",
     "crates/bls-permissions",
+    "crates/browser",
 ]
 
 [workspace.package]
