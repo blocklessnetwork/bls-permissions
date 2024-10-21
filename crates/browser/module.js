@@ -98,12 +98,9 @@ class DefaultTips {
                     top: 10px;
                     display: block;
                 }
-                50% {
-                    opacity: 0.7;
-                }
                 100% {
                     top: 100px;
-                    opacity: 0;
+                    opacity: 0.5;
                     display: none;
                 }
             }
