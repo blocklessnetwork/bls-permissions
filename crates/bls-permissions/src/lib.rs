@@ -58,41 +58,6 @@ pub enum PermissionState {
     Yield = 4,
 }
 
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console, js_name = log)]
-    pub fn console_log(s: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name = debug)]
-    pub fn console_debug(s: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name = error)]
-    pub fn console_error(s: &str);
-    
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = confirm)]
-    pub fn bls_runtime_message_confirm(s: &str);
-
-    #[wasm_bindgen(js_namespace = bls_runtime, js_name = prompter)]
-    pub fn bls_runtime_prompter() -> String;
-}
-
-#[allow(unused_macros)]
-macro_rules! info {
-    ($($arg:tt)*) => {
-        #[cfg(target_arch = "wasm32")]
-        unsafe {crate::console_log(&format!($($arg)*))};
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! error {
-    ($($arg:tt)*) => {
-        #[cfg(target_arch = "wasm32")]
-        crate::console_error(&format!($($arg)*));
-    };
-}
-
 static DEBUG_LOG_ENABLED: Lazy<bool> = Lazy::new(|| log::log_enabled!(log::Level::Debug));
 
 static DEBUG_LOG_MSG_FUNC: Mutex<Option<Box<dyn Fn(&str) -> String + 'static + Send + Sync>>> = Mutex::new(None);
