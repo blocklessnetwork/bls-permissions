@@ -9,7 +9,6 @@ description = "Provides the browser runtime permissions implementation."
 
 [dependencies]
 bls-permissions.workspace = true
-wasm-bindgen.workspace = true
 once_cell.workspace = true
 serde_json.workspace = true
 serde.workspace = true
