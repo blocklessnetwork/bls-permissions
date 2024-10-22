@@ -40,7 +40,6 @@ fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
 pub fn init_tty_prompter() {
     static TTYPROMPTER: Once = Once::new();
     TTYPROMPTER.call_once(|| {
-        println!("tty installed");
         bls_set_prompter(Box::new(TtyPrompter));
     });
 }
