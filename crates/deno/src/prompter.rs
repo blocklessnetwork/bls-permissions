@@ -11,12 +11,13 @@ use std::io::Write as IoWrite;
 use std::sync::Once;
 
 use crate::is_standalone;
-use bls_permissions::bls_permission_prompt;
 use bls_permissions::bls_set_prompt_callbacks;
 use bls_permissions::bls_set_prompter;
 pub use bls_permissions::PermissionPrompter;
 pub use bls_permissions::PromptCallback;
 pub use bls_permissions::PromptResponse;
+pub use bls_permissions::PERMISSION_EMOJI;
+pub use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
 
 /// Helper function to make control characters visible so users can see the underlying filename.
 fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
@@ -36,22 +37,11 @@ fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
     output.into()
 }
 
-pub const PERMISSION_EMOJI: &str = "⚠️";
-
-// 10kB of permission prompting should be enough for anyone
-const MAX_PERMISSION_PROMPT_LENGTH: usize = 10 * 1024;
-
-pub fn permission_prompt(
-    message: &str,
-    flag: &str,
-    api_name: Option<&str>,
-    is_unary: bool,
-) -> PromptResponse {
+pub fn init_tty_prompter() {
     static TTYPROMPTER: Once = Once::new();
     TTYPROMPTER.call_once(|| {
         bls_set_prompter(Box::new(TtyPrompter));
     });
-    bls_permission_prompt(message, flag, api_name, is_unary)
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {

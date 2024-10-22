@@ -1,7 +1,8 @@
+use parking_lot::lock_api::MutexGuard;
+use parking_lot::RawMutex;
 use serde::de;
 use std::fmt;
 use std::sync::Once;
-use url::Url;
 use fqdn::FQDN;
 use anyhow::Context;
 use once_cell::sync::Lazy;
@@ -19,18 +20,27 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
+use std::ffi::OsStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+#[cfg(not(target_arch = "wasm32"))]
 use which::which;
+pub use url::Url;
 
 mod error;
 use error::custom_error;
 use error::type_error;
 use error::uri_error;
+pub use error::is_yield_error_class;
+#[cfg(target_arch = "wasm32")]
+use error::yield_error;
 
 mod prompter;
 pub use prompter::*;
-pub use prompter::bls_permission_prompt as permission_prompt;
+use prompter::bls_permission_prompt as permission_prompt;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 pub type AnyError = anyhow::Error;
 
@@ -44,6 +54,8 @@ pub enum PermissionState {
     #[default]
     Prompt = 2,
     Denied = 3,
+    #[cfg(target_arch = "wasm32")]
+    Yield = 4,
 }
 
 static DEBUG_LOG_ENABLED: Lazy<bool> = Lazy::new(|| log::log_enabled!(log::Level::Debug));
@@ -75,6 +87,8 @@ impl fmt::Display for PermissionState {
             PermissionState::GrantedPartial => f.pad("granted-partial"),
             PermissionState::Prompt => f.pad("prompt"),
             PermissionState::Denied => f.pad("denied"),
+            #[cfg(target_arch = "wasm32")]
+            PermissionState::Yield => f.pad("yield"),
         }
     }
 }
@@ -163,8 +177,11 @@ impl PermissionState {
                         (Ok(()), true, true)
                     }
                     PromptResponse::Deny => (Err(Self::error(name, info)), true, false),
+                    #[cfg(target_arch = "wasm32")]
+                    PromptResponse::Yield => (Err(yield_error("yield.")), false, false),
                 }
             }
+            
             _ => (Err(Self::error(name, info)), false, false),
         }
     }
@@ -301,7 +318,10 @@ pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
         Ok(normalize_path(path))
     } else {
         #[allow(clippy::disallowed_methods)]
-        let cwd = std::env::current_dir().context("Failed to get current working directory")?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let cwd: PathBuf = std::env::current_dir().context("Failed to get current working directory")?;
+        #[cfg(target_arch = "wasm32")]
+        let cwd: PathBuf = "/".into();
         Ok(normalize_path(cwd.join(path)))
     }
 }
@@ -475,6 +495,10 @@ impl<T: Descriptor + Hash> UnaryPermission<T> {
             PromptResponse::AllowAll => {
                 self.insert_granted(None);
                 PermissionState::Granted
+            }
+            #[cfg(target_arch = "wasm32")]
+            PromptResponse::Yield => {
+                PermissionState::Yield
             }
         }
     }
@@ -942,10 +966,13 @@ impl Descriptor for RunDescriptor {
 
     fn aliases(&self) -> Vec<Self> {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             RunDescriptor::Name(name) => match which(name) {
                 Ok(path) => vec![RunDescriptor::Path(path)],
                 Err(_) => vec![],
             },
+            #[cfg(target_arch = "wasm32")]
+            RunDescriptor::Name(_) => vec![], 
             RunDescriptor::Path(_) => vec![],
         }
     }
@@ -1521,8 +1548,12 @@ impl Permissions {
     /// A helper function that determines if the module specifier is a local or
     /// remote, and performs a read or net check for the specifier.
     pub fn check_specifier(&mut self, specifier: &ModuleSpecifier) -> Result<(), AnyError> {
+        #[cfg(target_arch="wasm32")]
+        let filepath  =  to_file_path(specifier);
+        #[cfg(not(target_arch="wasm32"))]
+        let filepath = specifier.to_file_path();
         match specifier.scheme() {
-            "file" => match specifier.to_file_path() {
+            "file" => match filepath {
                 Ok(path) => self.read.check(&path, Some("import()")),
                 Err(_) => Err(uri_error(format!(
                     "Invalid file path.\n  Specifier: {specifier}"
@@ -1533,6 +1564,58 @@ impl Permissions {
             _ => self.net.check_url(specifier, Some("import()")),
         }
     }
+}
+
+#[cfg(target_arch="wasm32")]
+fn to_file_path(url: &Url) -> Result<PathBuf, ()> {
+    if let Some(segments) = url.path_segments() {
+        let host = match url.host() {
+            None | Some(url::Host::Domain("localhost")) => None,
+            _ => return Err(()),
+        };
+
+        return file_url_segments_to_pathbuf(host, segments);
+    }
+    Err(())
+}
+
+/// the file_url_segments_to_pathbuf is come from url crate
+/// which is not for wasm32
+#[cfg(target_arch = "wasm32")]
+fn file_url_segments_to_pathbuf(
+    host: Option<&str>,
+    segments: std::str::Split<'_, char>,
+) -> Result<PathBuf, ()> {
+    if host.is_some() {
+        return Err(());
+    }
+
+    let mut bytes = Vec::new();
+
+    for segment in segments {
+        bytes.push(b'/');
+        bytes.extend(percent_encoding::percent_decode(segment.as_bytes()));
+    }
+
+    // A windows drive letter must end with a slash.
+    if bytes.len() > 2
+        && bytes[bytes.len() - 2].is_ascii_alphabetic()
+        && matches!(bytes[bytes.len() - 1], b':' | b'|')
+    {
+        bytes.push(b'/');
+    }
+
+    let path_str = unsafe {
+        String::from_raw_parts(bytes.as_mut_ptr(), bytes.len(), bytes.capacity())
+    };
+    let path = PathBuf::from(path_str);
+
+    debug_assert!(
+        path.is_absolute(),
+        "to_file_path() failed to produce an absolute Path"
+    );
+
+    Ok(path)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1550,17 +1633,20 @@ impl UnitPermission {
 
     pub fn request(&mut self) -> PermissionState {
         if self.state == PermissionState::Prompt {
-            if PromptResponse::Allow
-                == permission_prompt(
-                    &format!("access to {}", self.description),
-                    self.name,
-                    Some("Deno.permissions.query()"),
-                    false,
-                )
-            {
+            let resp = permission_prompt(
+                &format!("access to {}", self.description),
+                self.name,
+                Some("Deno.permissions.query()"),
+                false,
+            );
+            if PromptResponse::Allow == resp {
                 self.state = PermissionState::Granted;
             } else {
                 self.state = PermissionState::Denied;
+                #[cfg(target_arch = "wasm32")]
+                if PromptResponse::Yield == resp {
+                    self.state = PermissionState::Yield;
+                }
             }
         }
         self.state
@@ -1733,3 +1819,268 @@ impl From<bool> for AllowPartial {
         }
     }
 }
+
+/// Wrapper struct for `Permissions` that can be shared across threads.
+///
+/// We need a way to have internal mutability for permissions as they might get
+/// passed to a future that will prompt the user for permission (and in such
+/// case might need to be mutated). Also for the Web Worker API we need a way
+/// to send permissions to a new thread.
+#[derive(Clone, Debug)]
+pub struct BlsPermissionsContainer(pub Arc<Mutex<Permissions>>);
+
+impl BlsPermissionsContainer {
+    
+    #[inline(always)]
+    pub fn lock(&self) -> MutexGuard<'_, RawMutex, Permissions> {
+        self.0.lock()
+    }
+
+    pub fn new(perms: Permissions) -> Self {
+        // init_debug_log_msg_func(|msg: &str| format!("{}", colors::bold(msg)));
+        Self(Arc::new(Mutex::new(perms)))
+    }
+
+    #[inline(always)]
+    pub fn allow_hrtime(&self) -> bool {
+        self.0.lock().hrtime.check().is_ok()
+    }
+
+    pub fn allow_all() -> Self {
+        Self::new(Permissions::allow_all())
+    }
+
+    #[inline(always)]
+    pub fn check_specifier(&self, specifier: &ModuleSpecifier) -> Result<(), AnyError> {
+        self.0.lock().check_specifier(specifier)
+    }
+
+    #[inline(always)]
+    pub fn check_read(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().read.check(path, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_read_with_api_name(
+        &self,
+        path: &Path,
+        api_name: Option<&str>,
+    ) -> Result<(), AnyError> {
+        self.0.lock().read.check(path, api_name)
+    }
+
+    #[inline(always)]
+    pub fn check_read_blind(
+        &self,
+        path: &Path,
+        display: &str,
+        api_name: &str,
+    ) -> Result<(), AnyError> {
+        self.0.lock().read.check_blind(path, display, api_name)
+    }
+
+    #[inline(always)]
+    pub fn check_read_all(&self, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().read.check_all(Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_write(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().write.check(path, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_write_with_api_name(
+        &self,
+        path: &Path,
+        api_name: Option<&str>,
+    ) -> Result<(), AnyError> {
+        self.0.lock().write.check(path, api_name)
+    }
+
+    #[inline(always)]
+    pub fn check_write_all(&self, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().write.check_all(Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_write_blind(
+        &self,
+        path: &Path,
+        display: &str,
+        api_name: &str,
+    ) -> Result<(), AnyError> {
+        self.0.lock().write.check_blind(path, display, api_name)
+    }
+
+    #[inline(always)]
+    pub fn check_write_partial(&self, path: &Path, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().write.check_partial(path, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_run(&self, cmd: &str, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().run.check(cmd, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_run_all(&self, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().run.check_all(Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_sys(&self, kind: &str, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().sys.check(kind, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_env(&self, var: &str) -> Result<(), AnyError> {
+        self.0.lock().env.check(var, None)
+    }
+
+    #[inline(always)]
+    pub fn check_env_all(&self) -> Result<(), AnyError> {
+        self.0.lock().env.check_all()
+    }
+
+    #[inline(always)]
+    pub fn check_sys_all(&self) -> Result<(), AnyError> {
+        self.0.lock().sys.check_all()
+    }
+
+    #[inline(always)]
+    pub fn check_ffi_all(& self) -> Result<(), AnyError> {
+        self.0.lock().ffi.check_all()
+    }
+
+    /// This checks to see if the allow-all flag was passed, not whether all
+    /// permissions are enabled!
+    #[inline(always)]
+    pub fn check_was_allow_all_flag_passed(&self) -> Result<(), AnyError> {
+        self.0.lock().all.check()
+    }
+
+    /// Checks special file access, returning the failed permission type if
+    /// not successful.
+    pub fn check_special_file(&self, path: &Path, _api_name: &str) -> Result<(), &'static str> {
+        let error_all = |_| "all";
+
+        // Safe files with no major additional side-effects. While there's a small risk of someone
+        // draining system entropy by just reading one of these files constantly, that's not really
+        // something we worry about as they already have --allow-read to /dev.
+        if cfg!(unix)
+            && (path == OsStr::new("/dev/random")
+                || path == OsStr::new("/dev/urandom")
+                || path == OsStr::new("/dev/zero")
+                || path == OsStr::new("/dev/null"))
+        {
+            return Ok(());
+        }
+
+        /// We'll allow opening /proc/self/fd/{n} without additional permissions under the following conditions:
+        ///
+        /// 1. n > 2. This allows for opening bash-style redirections, but not stdio
+        /// 2. the fd referred to by n is a pipe
+        #[cfg(unix)]
+        fn is_fd_file_is_pipe(path: &Path) -> bool {
+            if let Some(fd) = path.file_name() {
+                if let Ok(s) = std::str::from_utf8(fd.as_encoded_bytes()) {
+                    if let Ok(n) = s.parse::<i32>() {
+                        if n > 2 {
+                            // SAFETY: This is proper use of the stat syscall
+                            unsafe {
+                                let mut stat = std::mem::zeroed::<libc::stat>();
+                                if libc::fstat(n, &mut stat as _) == 0
+                                    && ((stat.st_mode & libc::S_IFMT) & libc::S_IFIFO) != 0
+                                {
+                                    return true;
+                                }
+                            };
+                        }
+                    }
+                }
+            }
+            false
+        }
+
+        // On unixy systems, we allow opening /dev/fd/XXX for valid FDs that
+        // are pipes.
+        #[cfg(unix)]
+        if path.starts_with("/dev/fd") && is_fd_file_is_pipe(path) {
+            return Ok(());
+        }
+
+        if cfg!(target_os = "linux") {
+            // On Linux, we also allow opening /proc/self/fd/XXX for valid FDs that
+            // are pipes.
+            #[cfg(unix)]
+            if path.starts_with("/proc/self/fd") && is_fd_file_is_pipe(path) {
+                return Ok(());
+            }
+            if path.starts_with("/dev") || path.starts_with("/proc") || path.starts_with("/sys") {
+                if path.ends_with("/environ") {
+                    self.check_env_all().map_err(|_| "env")?;
+                } else {
+                    self.check_was_allow_all_flag_passed().map_err(error_all)?;
+                }
+            }
+        } else if cfg!(unix) {
+            if path.starts_with("/dev") {
+                self.check_was_allow_all_flag_passed().map_err(error_all)?;
+            }
+        } else if cfg!(target_os = "windows") {
+            // \\.\nul is allowed
+            let s = path.as_os_str().as_encoded_bytes();
+            if s.eq_ignore_ascii_case(br#"\\.\nul"#) {
+                return Ok(());
+            }
+
+            fn is_normalized_windows_drive_path(path: &Path) -> bool {
+                let s = path.as_os_str().as_encoded_bytes();
+                // \\?\X:\
+                if s.len() < 7 {
+                    false
+                } else if s.starts_with(br#"\\?\"#) {
+                    s[4].is_ascii_alphabetic() && s[5] == b':' && s[6] == b'\\'
+                } else {
+                    false
+                }
+            }
+
+            // If this is a normalized drive path, accept it
+            if !is_normalized_windows_drive_path(path) {
+                self.check_was_allow_all_flag_passed().map_err(error_all)?;
+            }
+        } else {
+            unimplemented!()
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn check_net_url(&self, url: &Url, api_name: &str) -> Result<(), AnyError> {
+        self.0.lock().net.check_url(url, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_net<T: AsRef<str>>(
+        &self,
+        host: &(T, Option<u16>),
+        api_name: &str,
+    ) -> Result<(), AnyError> {
+        let hostname = host.0.as_ref().parse::<Host>()?;
+        let descriptor = NetDescriptor(hostname, host.1);
+        self.0.lock().net.check(&descriptor, Some(api_name))
+    }
+
+    #[inline(always)]
+    pub fn check_ffi(&self, path: Option<&Path>) -> Result<(), AnyError> {
+        self.0.lock().ffi.check(path.unwrap(), None)
+    }
+
+    #[inline(always)]
+    pub fn check_ffi_partial(&self, path: Option<&Path>) -> Result<(), AnyError> {
+        self.0.lock().ffi.check_partial(path)
+    }
+}
+

@@ -1,0 +1,48 @@
+<html>
+<body>
+<script>
+let cachedTextDecoder = new TextDecoder('utf-8');
+let wasm = {};
+let cachegetUint8Memory = null;
+function getUint8Memory() {
+    if (cachegetUint8Memory === null || cachegetUint8Memory.buffer !== wasm.memory.buffer) {
+        cachegetUint8Memory = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachegetUint8Memory;
+}
+
+function getStringFromWasm(ptr, len) {
+    let text = cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
+    return text;
+}
+
+const imports = {
+  __wbindgen_placeholder__: {
+    __wbindgen_describe: console.log,
+    __wbindgen_throw: function(ptr, len) {
+        throw new Error(getStringFromWasm(ptr, len));
+    },
+    __wbg_log_10d0d0aee9c7bbfb: function(ptr, len) {
+      console.log(getStringFromWasm(ptr, len));
+    }
+  },
+  __wbindgen_externref_xform__: {
+    __wbindgen_externref_table_grow: () => {
+      throw Error("Unexpected call to __wbindgen_externref_table_grow");
+    },
+    __wbindgen_externref_table_set_null: () => {
+      throw Error("Unexpected call to __wbindgen_externref_table_set_null");
+    },
+    
+  },
+};
+fetch("./browser_permissions.wasm")
+.then((resp) => resp.arrayBuffer())
+.then((bs) => WebAssembly.instantiate(bs, imports))
+.then((rs) => {
+    wasm.memory = rs.instance.exports.memory;
+    console.log(rs.instance.exports.init_permissions_prompt())
+})
+</script>
+</body>
+</html>

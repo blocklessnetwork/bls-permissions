@@ -6,11 +6,16 @@ pub enum PromptResponse {
     Allow,
     Deny,
     AllowAll,
+    #[cfg(target_arch = "wasm32")]
+    Yield,
 }
 
 pub type PromptCallback = Box<dyn FnMut() + Send + Sync>;
 
 pub const PERMISSION_EMOJI: &str = "⚠️";
+
+// 10kB of permission prompting should be enough for anyone
+pub const MAX_PERMISSION_PROMPT_LENGTH: usize = 10 * 1024;
 
 pub trait PermissionPrompter: Send + Sync {
     fn prompt(
