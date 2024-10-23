@@ -39,8 +39,6 @@ use error::yield_error;
 mod prompter;
 pub use prompter::*;
 use prompter::bls_permission_prompt as permission_prompt;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::wasm_bindgen;
 
 pub type AnyError = anyhow::Error;
 
