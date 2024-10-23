@@ -11,6 +11,7 @@ use serde::Serialize;
 use crate::blsrt_get_input as get_input;
 use super::html::Html;
 
+#[cfg(target_arch = "wasm32")]
 const YIELD: &str = "cmd:yield";
 
 pub fn init_browser_prompter() {
