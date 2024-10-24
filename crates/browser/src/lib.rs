@@ -1,15 +1,15 @@
-use std::path::Path;
-use std::path::PathBuf;
-use bls_permissions::AnyError;
 use bls_permissions::is_yield_error_class;
+use bls_permissions::AnyError;
 use bls_permissions::BlsPermissionsContainer;
 use bls_permissions::ModuleSpecifier;
 use bls_permissions::Permissions;
 use bls_permissions::Url;
+pub use macros::*;
 use once_cell::sync::Lazy;
 use prompter::init_browser_prompter;
+use std::path::Path;
+use std::path::PathBuf;
 use wasm_bindgen::prelude::wasm_bindgen;
-pub use macros::*;
 
 #[macro_use]
 mod macros;
@@ -173,14 +173,13 @@ impl PermissionsContainer {
     }
 }
 
-static PERMSSIONSCONTAINER: Lazy<PermissionsContainer> = Lazy::new(|| {
-    PermissionsContainer::allow_all()
-});
+static PERMSSIONSCONTAINER: Lazy<PermissionsContainer> =
+    Lazy::new(|| PermissionsContainer::allow_all());
 
 #[wasm_bindgen]
 pub fn init_permissions_prompt(b: bool) {
     info!("init_permissions_prompt: {b}");
-    *PERMSSIONSCONTAINER.0.0.lock() = if b {
+    *PERMSSIONSCONTAINER.0 .0.lock() = if b {
         Permissions::none_with_prompt()
     } else {
         Permissions::none_without_prompt()
@@ -206,7 +205,6 @@ pub struct JsCode {
     code: Code,
     msg: Option<String>,
 }
-
 
 #[wasm_bindgen]
 impl JsCode {
@@ -245,7 +243,7 @@ impl JsCode {
     fn error<T: Into<String>>(code: Code, msg: T) -> Self {
         Self {
             code,
-            msg: Some(msg.into())
+            msg: Some(msg.into()),
         }
     }
 }
@@ -272,15 +270,20 @@ pub fn check_env(env: &str) -> JsCode {
 #[wasm_bindgen]
 pub fn check_net(net: &str, api_name: &str) -> JsCode {
     info!("check net: {net}");
-    let net= match net.rsplit_once(":") {
+    let net = match net.rsplit_once(":") {
         Some((a, p)) => {
             let port: Result<u16, _> = p.parse();
             let port = match port {
                 Ok(port) => Some(port),
-                Err(_) => return JsCode::error(Code::ParameterError, &format!("{net} parameter is error.")),
+                Err(_) => {
+                    return JsCode::error(
+                        Code::ParameterError,
+                        &format!("{net} parameter is error."),
+                    )
+                }
             };
             (a, port)
-        },
+        }
         None => (net, None),
     };
     permission_check!(PERMSSIONSCONTAINER.check_net(&net, api_name))
@@ -291,7 +294,9 @@ pub fn check_net_url(url: &str, api_name: &str) -> JsCode {
     info!("check net url: {url}");
     let url = match url.parse() {
         Ok(url) => url,
-        Err(_) => return JsCode::error(Code::ParameterError, &format!("{url} parameter is error.")),
+        Err(_) => {
+            return JsCode::error(Code::ParameterError, &format!("{url} parameter is error."))
+        }
     };
     permission_check!(PERMSSIONSCONTAINER.check_net_url(&url, api_name))
 }

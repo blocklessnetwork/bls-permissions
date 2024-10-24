@@ -1,6 +1,5 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console, js_name = log)]
@@ -61,12 +60,10 @@ macro_rules! error2jscode {
             JsCode::error(Code::Failed, $msg)
         }
     };
-    ($e: expr) => {
-        {
-            let msg = format!("{}", $e);
-            error2jscode!($e, msg)
-        }
-    }
+    ($e: expr) => {{
+        let msg = format!("{}", $e);
+        error2jscode!($e, msg)
+    }};
 }
 
 macro_rules! permission_check {

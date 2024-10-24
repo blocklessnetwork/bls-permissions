@@ -87,5 +87,7 @@ pub fn get_custom_error_class(error: &Error) -> Option<&'static str> {
 
 #[inline(always)]
 pub fn is_yield_error_class(error: &Error) -> bool {
-    get_custom_error_class(error).map(|s| s == YIELD_CLASS).unwrap_or(false)
+    get_custom_error_class(error)
+        .map(|s| s == YIELD_CLASS)
+        .unwrap_or(false)
 }
