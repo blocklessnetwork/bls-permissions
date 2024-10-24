@@ -23,7 +23,7 @@ use termcolor::BufferWriter;
 use termcolor::ColorChoice;
 
 static USE_COLOR: Lazy<AtomicBool> = Lazy::new(|| {
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     {
         // Don't use color by default on Wasm targets because
         // it's not always possible to read the `NO_COLOR` env var.
@@ -31,7 +31,7 @@ static USE_COLOR: Lazy<AtomicBool> = Lazy::new(|| {
         // Instead the user can opt-in via `set_use_color`.
         AtomicBool::new(false)
     }
-    #[cfg(not(target_family="wasm"))]
+    #[cfg(not(target_family = "wasm"))]
     {
         let no_color = std::env::var_os("NO_COLOR")
             .map(|v| !v.is_empty())
@@ -49,13 +49,13 @@ pub enum ColorLevel {
 }
 
 static COLOR_LEVEL: Lazy<ColorLevel> = Lazy::new(|| {
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     {
         // Don't use color by default on Wasm targets because
         // it's not always possible to read env vars.
         ColorLevel::None
     }
-    #[cfg(not(target_family="wasm"))]
+    #[cfg(not(target_family = "wasm"))]
     {
         let no_color = std::env::var_os("NO_COLOR")
             .map(|v| !v.is_empty())

@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 pub use url::Url;
-#[cfg(not(target_family="wasm"))]
+#[cfg(not(target_family = "wasm"))]
 use which::which;
 
 mod error;
@@ -33,7 +33,7 @@ use error::custom_error;
 pub use error::is_yield_error_class;
 use error::type_error;
 use error::uri_error;
-#[cfg(target_family="wasm")]
+#[cfg(target_family = "wasm")]
 use error::yield_error;
 use terminal::colors;
 
@@ -63,7 +63,7 @@ pub enum PermissionState {
     #[default]
     Prompt = 2,
     Denied = 3,
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     Yield = 4,
 }
 
@@ -127,7 +127,7 @@ impl fmt::Display for PermissionState {
             PermissionState::GrantedPartial => f.pad("granted-partial"),
             PermissionState::Prompt => f.pad("prompt"),
             PermissionState::Denied => f.pad("denied"),
-            #[cfg(target_family="wasm")]
+            #[cfg(target_family = "wasm")]
             PermissionState::Yield => f.pad("yield"),
         }
     }
@@ -218,7 +218,7 @@ impl PermissionState {
                         (Ok(()), true, true)
                     }
                     PromptResponse::Deny => (Err(Self::error(name, info)), true, false),
-                    #[cfg(target_family="wasm")]
+                    #[cfg(target_family = "wasm")]
                     PromptResponse::Yield => (Err(yield_error("yield.")), false, false),
                 }
             }
@@ -297,10 +297,10 @@ pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
         Ok(normalize_path(path))
     } else {
         #[allow(clippy::disallowed_methods)]
-        #[cfg(not(target_family="wasm"))]
+        #[cfg(not(target_family = "wasm"))]
         let cwd: PathBuf =
             std::env::current_dir().context("Failed to get current working directory")?;
-        #[cfg(target_family="wasm")]
+        #[cfg(target_family = "wasm")]
         let cwd: PathBuf = "/".into();
         Ok(normalize_path(cwd.join(path)))
     }
@@ -493,7 +493,7 @@ impl<TQuery: QueryDescriptor> UnaryPermission<TQuery> {
                 self.insert_granted(None);
                 PermissionState::Granted
             }
-            #[cfg(target_family="wasm")]
+            #[cfg(target_family = "wasm")]
             PromptResponse::Yield => PermissionState::Yield,
         }
     }
@@ -1191,7 +1191,7 @@ impl RunQueryDescriptor {
                 resolved,
             })
         } else {
-            #[cfg(not(target_family="wasm"))]
+            #[cfg(not(target_family = "wasm"))]
             match which(requested) {
                 Ok(resolved) => Ok(RunQueryDescriptor::Path {
                     requested: requested.to_string(),
@@ -1199,7 +1199,7 @@ impl RunQueryDescriptor {
                 }),
                 Err(_) => Ok(RunQueryDescriptor::Name(requested.to_string())),
             }
-            #[cfg(target_family="wasm")]
+            #[cfg(target_family = "wasm")]
             Ok(RunQueryDescriptor::Name(requested.to_string()))
         }
     }
@@ -1316,9 +1316,9 @@ pub enum AllowRunDescriptorParseResult {
     /// An error occured getting the descriptor that should
     /// be surfaced as a warning when launching deno, but should
     /// be ignored when creating a worker.
-    #[cfg(not(target_family="wasm"))]
+    #[cfg(not(target_family = "wasm"))]
     Unresolved(Box<which::Error>),
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     Unresolved(Box<AnyError>),
     Descriptor(AllowRunDescriptor),
 }
@@ -1336,7 +1336,7 @@ fn resolve_from_known_cwd(path: &Path, cwd: &Path) -> PathBuf {
 pub struct AllowRunDescriptor(pub PathBuf);
 
 impl AllowRunDescriptor {
-    #[cfg(not(target_family="wasm"))]
+    #[cfg(not(target_family = "wasm"))]
     pub fn parse(text: &str, cwd: &Path) -> Result<AllowRunDescriptorParseResult, which::Error> {
         let is_path = is_path(text);
         // todo(dsherret): canonicalize in #25458
@@ -1362,7 +1362,7 @@ impl AllowRunDescriptor {
         ))
     }
 
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     pub fn parse(text: &str, cwd: &Path) -> Result<AllowRunDescriptorParseResult, AnyError> {
         let is_path = is_path(text);
         // todo(dsherret): canonicalize in #25458
@@ -2071,7 +2071,7 @@ pub enum CheckSpecifierKind {
 /// the file_url_segments_to_pathbuf is come from url crate
 /// which is not for wasm
 #[allow(dead_code)]
-#[cfg(target_family="wasm")]
+#[cfg(target_family = "wasm")]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: std::str::Split<'_, char>,
@@ -2132,7 +2132,7 @@ impl UnitPermission {
                 self.state = PermissionState::Granted;
             } else {
                 self.state = PermissionState::Denied;
-                #[cfg(target_family="wasm")]
+                #[cfg(target_family = "wasm")]
                 if PromptResponse::Yield == resp {
                     self.state = PermissionState::Yield;
                 }

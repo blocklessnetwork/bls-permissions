@@ -419,9 +419,7 @@ impl PermissionDescriptorParser for BrowserPermissionDescriptorParser {
 }
 
 static PERMSSIONSCONTAINER: Lazy<PermissionsContainer> =
-    Lazy::new(|| {
-        PermissionsContainer::allow_all(Arc::new(BrowserPermissionDescriptorParser))
-    });
+    Lazy::new(|| PermissionsContainer::allow_all(Arc::new(BrowserPermissionDescriptorParser)));
 
 #[wasm_bindgen]
 pub fn init_permissions_prompt(b: bool) {

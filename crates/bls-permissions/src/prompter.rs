@@ -6,7 +6,7 @@ pub enum PromptResponse {
     Allow,
     Deny,
     AllowAll,
-    #[cfg(target_family="wasm")]
+    #[cfg(target_family = "wasm")]
     Yield,
 }
 

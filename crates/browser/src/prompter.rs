@@ -11,7 +11,7 @@ use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
 use bls_permissions::PERMISSION_EMOJI;
 use serde::Serialize;
 
-#[cfg(target_family="wasm")]
+#[cfg(target_family = "wasm")]
 const YIELD: &str = "cmd:yield";
 
 pub fn init_browser_prompter() {
@@ -111,7 +111,7 @@ impl PermissionPrompter for BrowserPrompter {
         }
         let resp = loop {
             let input = blsrt_get_input();
-            #[cfg(target_family="wasm")]
+            #[cfg(target_family = "wasm")]
             if input == YIELD {
                 return PromptResponse::Yield;
             }
@@ -134,7 +134,7 @@ impl PermissionPrompter for BrowserPrompter {
                 }
                 _ => {
                     blsrt_show_tips!(fail:"┗ Unrecognized option. Allow? {opts} > ");
-                    #[cfg(target_family="wasm")]
+                    #[cfg(target_family = "wasm")]
                     break PromptResponse::Yield;
                 }
             }
