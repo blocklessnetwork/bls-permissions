@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 pub use url::Url;
-#[cfg(not(wasm))]
+#[cfg(not(target_family="wasm"))]
 use which::which;
 
 mod error;
@@ -33,7 +33,7 @@ use error::custom_error;
 pub use error::is_yield_error_class;
 use error::type_error;
 use error::uri_error;
-#[cfg(wasm)]
+#[cfg(target_family="wasm")]
 use error::yield_error;
 use terminal::colors;
 
@@ -53,7 +53,7 @@ pub enum PermissionState {
     #[default]
     Prompt = 2,
     Denied = 3,
-    #[cfg(wasm)]
+    #[cfg(target_family="wasm")]
     Yield = 4,
 }
 
@@ -117,7 +117,7 @@ impl fmt::Display for PermissionState {
             PermissionState::GrantedPartial => f.pad("granted-partial"),
             PermissionState::Prompt => f.pad("prompt"),
             PermissionState::Denied => f.pad("denied"),
-            #[cfg(wasm)]
+            #[cfg(target_family="wasm")]
             PermissionState::Yield => f.pad("yield"),
         }
     }
@@ -208,7 +208,7 @@ impl PermissionState {
                         (Ok(()), true, true)
                     }
                     PromptResponse::Deny => (Err(Self::error(name, info)), true, false),
-                    #[cfg(wasm)]
+                    #[cfg(target_family="wasm")]
                     PromptResponse::Yield => (Err(yield_error("yield.")), false, false),
                 }
             }
@@ -287,10 +287,10 @@ pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf, AnyError> {
         Ok(normalize_path(path))
     } else {
         #[allow(clippy::disallowed_methods)]
-        #[cfg(not(wasm))]
+        #[cfg(not(target_family="wasm"))]
         let cwd: PathBuf =
             std::env::current_dir().context("Failed to get current working directory")?;
-        #[cfg(wasm)]
+        #[cfg(target_family="wasm")]
         let cwd: PathBuf = "/".into();
         Ok(normalize_path(cwd.join(path)))
     }
@@ -483,7 +483,7 @@ impl<TQuery: QueryDescriptor> UnaryPermission<TQuery> {
                 self.insert_granted(None);
                 PermissionState::Granted
             }
-            #[cfg(wasm)]
+            #[cfg(target_family="wasm")]
             PromptResponse::Yield => PermissionState::Yield,
         }
     }
@@ -1181,6 +1181,7 @@ impl RunQueryDescriptor {
                 resolved,
             })
         } else {
+            #[cfg(not(target_family="wasm"))]
             match which(requested) {
                 Ok(resolved) => Ok(RunQueryDescriptor::Path {
                     requested: requested.to_string(),
@@ -1188,6 +1189,8 @@ impl RunQueryDescriptor {
                 }),
                 Err(_) => Ok(RunQueryDescriptor::Name(requested.to_string())),
             }
+            #[cfg(target_family="wasm")]
+            Ok(RunQueryDescriptor::Name(requested.to_string()))
         }
     }
 }
@@ -1303,7 +1306,10 @@ pub enum AllowRunDescriptorParseResult {
     /// An error occured getting the descriptor that should
     /// be surfaced as a warning when launching deno, but should
     /// be ignored when creating a worker.
+    #[cfg(not(target_family="wasm"))]
     Unresolved(Box<which::Error>),
+    #[cfg(target_family="wasm")]
+    Unresolved(Box<AnyError>),
     Descriptor(AllowRunDescriptor),
 }
 
@@ -1320,6 +1326,7 @@ fn resolve_from_known_cwd(path: &Path, cwd: &Path) -> PathBuf {
 pub struct AllowRunDescriptor(pub PathBuf);
 
 impl AllowRunDescriptor {
+    #[cfg(not(target_family="wasm"))]
     pub fn parse(text: &str, cwd: &Path) -> Result<AllowRunDescriptorParseResult, which::Error> {
         let is_path = is_path(text);
         // todo(dsherret): canonicalize in #25458
@@ -1339,6 +1346,20 @@ impl AllowRunDescriptor {
                     }
                 },
             }
+        };
+        Ok(AllowRunDescriptorParseResult::Descriptor(
+            AllowRunDescriptor(path),
+        ))
+    }
+
+    #[cfg(target_family="wasm")]
+    pub fn parse(text: &str, cwd: &Path) -> Result<AllowRunDescriptorParseResult, AnyError> {
+        let is_path = is_path(text);
+        // todo(dsherret): canonicalize in #25458
+        let path = if is_path {
+            resolve_from_known_cwd(Path::new(text), cwd)
+        } else {
+            resolve_from_known_cwd(Path::new(&format!("/{text}")), cwd)
         };
         Ok(AllowRunDescriptorParseResult::Descriptor(
             AllowRunDescriptor(path),
@@ -2039,7 +2060,8 @@ pub enum CheckSpecifierKind {
 
 /// the file_url_segments_to_pathbuf is come from url crate
 /// which is not for wasm
-#[cfg(wasm)]
+#[allow(dead_code)]
+#[cfg(target_family="wasm")]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: std::str::Split<'_, char>,
@@ -2100,7 +2122,7 @@ impl UnitPermission {
                 self.state = PermissionState::Granted;
             } else {
                 self.state = PermissionState::Denied;
-                #[cfg(wasm)]
+                #[cfg(target_family="wasm")]
                 if PromptResponse::Yield == resp {
                     self.state = PermissionState::Yield;
                 }
@@ -2288,6 +2310,11 @@ impl BlsPermissionsContainer {
         Self::new(descriptor_parser, Permissions::allow_all())
     }
 
+    pub fn lock(&self) -> parking_lot::lock_api::MutexGuard<parking_lot::RawMutex, Permissions> {
+        self.inner.lock()
+    }
+
+    #[inline(always)]
     pub fn create_child_permissions(
         &self,
         child_permissions_arg: ChildPermissionsArg,
@@ -2610,7 +2637,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_env(&mut self, var: &str) -> Result<(), AnyError> {
+    pub fn check_env(&self, var: &str) -> Result<(), AnyError> {
         self.inner.lock().env.check(var, None)
     }
 
@@ -2734,7 +2761,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_net_url(&mut self, url: &Url, api_name: &str) -> Result<(), AnyError> {
+    pub fn check_net_url(&self, url: &Url, api_name: &str) -> Result<(), AnyError> {
         let mut inner = self.inner.lock();
         if inner.net.is_allow_all() {
             return Ok(());
@@ -2745,7 +2772,7 @@ impl BlsPermissionsContainer {
 
     #[inline(always)]
     pub fn check_net<T: AsRef<str>>(
-        &mut self,
+        &self,
         host: &(T, Option<u16>),
         api_name: &str,
     ) -> Result<(), AnyError> {
@@ -2758,7 +2785,7 @@ impl BlsPermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn check_ffi(&mut self, path: &str) -> Result<PathBuf, AnyError> {
+    pub fn check_ffi(&self, path: &str) -> Result<PathBuf, AnyError> {
         let mut inner = self.inner.lock();
         let inner = &mut inner.ffi;
         if inner.is_allow_all() {
@@ -2772,7 +2799,7 @@ impl BlsPermissionsContainer {
 
     #[must_use = "the resolved return value to mitigate time-of-check to time-of-use issues"]
     #[inline(always)]
-    pub fn check_ffi_partial_no_path(&mut self) -> Result<(), AnyError> {
+    pub fn check_ffi_partial_no_path(&self) -> Result<(), AnyError> {
         let mut inner = self.inner.lock();
         let inner = &mut inner.ffi;
         if inner.is_allow_all() {
@@ -2784,7 +2811,7 @@ impl BlsPermissionsContainer {
 
     #[must_use = "the resolved return value to mitigate time-of-check to time-of-use issues"]
     #[inline(always)]
-    pub fn check_ffi_partial_with_path(&mut self, path: &str) -> Result<PathBuf, AnyError> {
+    pub fn check_ffi_partial_with_path(&self, path: &str) -> Result<PathBuf, AnyError> {
         let mut inner = self.inner.lock();
         let inner = &mut inner.ffi;
         if inner.is_allow_all() {

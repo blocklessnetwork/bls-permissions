@@ -107,4 +107,11 @@ blsCheckRead("/test.o", "permission").then((rs) =>{
     console.log(rs);
     let {code, msg} = rs;
     console.log(`code:${code} msg:${msg}` );
+
+    blsCheckRead("test.o", "permission").then((rs) =>{
+        console.log(rs);
+        let {code, msg} = rs;
+        console.log(`code:${code} msg:${msg}` );
+    });
 });
+

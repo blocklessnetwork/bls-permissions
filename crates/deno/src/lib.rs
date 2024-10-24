@@ -1,4 +1,3 @@
-use deno_core::unsync::sync::AtomicFlag;
 use prompter::init_tty_prompter;
 
 use std::borrow::Cow;
@@ -326,16 +325,6 @@ impl PermissionsContainer {
     }
 }
 
-static IS_STANDALONE: AtomicFlag = AtomicFlag::lowered();
-
-pub fn mark_standalone() {
-    IS_STANDALONE.raise();
-}
-
-pub fn is_standalone() -> bool {
-    IS_STANDALONE.is_raised()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,7 +341,7 @@ mod tests {
     macro_rules! svec {
       ($($x:expr),*) => (vec![$($x.to_string()),*]);
     }
-
+    // make the test thread serial process, make set prompter safe(it's global variable).
     static TESTMUTEX: Mutex<()> = Mutex::new(());
 
     #[derive(Debug, Clone)]
