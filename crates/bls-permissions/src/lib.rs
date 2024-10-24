@@ -45,6 +45,16 @@ pub type AnyError = anyhow::Error;
 
 pub type ModuleSpecifier = Url;
 
+#[cfg(feature = "deno")]
+const API: &'static str = "deno";
+#[cfg(feature = "deno")]
+const UAPI: &'static str = "Deno";
+
+#[cfg(not(feature = "deno"))]
+const API: &'static str = "bls-runtime";
+#[cfg(not(feature = "deno"))]
+const UAPI: &'static str = "Bls-runtime";
+
 /// Quadri-state value for storing permission state
 #[derive(Eq, PartialEq, Default, Debug, Clone, Copy, Deserialize, PartialOrd)]
 pub enum PermissionState {
@@ -468,7 +478,7 @@ impl<TQuery: QueryDescriptor> UnaryPermission<TQuery> {
         match permission_prompt(
             &message,
             TQuery::flag_name(),
-            Some("Deno.permissions.request()"),
+            Some(&format!("{UAPI}.permissions.request()")),
             true,
         ) {
             PromptResponse::Allow => {
@@ -2115,7 +2125,7 @@ impl UnitPermission {
             let resp = permission_prompt(
                 &format!("access to {}", self.description),
                 self.name,
-                Some("Deno.permissions.query()"),
+                Some("{UAPI}.permissions.query()"),
                 false,
             );
             if PromptResponse::Allow == resp {
@@ -3161,42 +3171,42 @@ impl<'de> Deserialize<'de> for ChildPermissionsArg {
                     if key == "env" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.env = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.env) {e}"))
+                            de::Error::custom(format!("({API}.permissions.env) {e}"))
                         })?;
                     } else if key == "net" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.net = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.net) {e}"))
+                            de::Error::custom(format!("({API}.permissions.net) {e}"))
                         })?;
                     } else if key == "ffi" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.ffi = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.ffi) {e}"))
+                            de::Error::custom(format!("({API}.permissions.ffi) {e}"))
                         })?;
                     } else if key == "import" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.import = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.import) {e}"))
+                            de::Error::custom(format!("({API}.permissions.import) {e}"))
                         })?;
                     } else if key == "read" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.read = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.read) {e}"))
+                            de::Error::custom(format!("({API}.permissions.read) {e}"))
                         })?;
                     } else if key == "run" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.run = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.run) {e}"))
+                            de::Error::custom(format!("({API}.permissions.run) {e}"))
                         })?;
                     } else if key == "sys" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.sys = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.sys) {e}"))
+                            de::Error::custom(format!("({API}.permissions.sys) {e}"))
                         })?;
                     } else if key == "write" {
                         let arg = serde_json::from_value::<ChildUnaryPermissionArg>(value);
                         child_permissions_arg.write = arg.map_err(|e| {
-                            de::Error::custom(format!("(deno.permissions.write) {e}"))
+                            de::Error::custom(format!("({API}.permissions.write) {e}"))
                         })?;
                     } else {
                         return Err(de::Error::custom("unknown permission name"));

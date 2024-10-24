@@ -22,11 +22,13 @@ percent-encoding.workspace = true
 thiserror.workspace = true
 termcolor = { version = "1.1.3"}
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(target_family="wasm"))'.dependencies]
 which.workspace = true
 
 [dev-dependencies]
 serde.workspace = true
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(wasm)'] }
+[features]
+default = ["deno"]
+deno=[]
+
