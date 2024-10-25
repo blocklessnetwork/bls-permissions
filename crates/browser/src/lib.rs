@@ -46,8 +46,8 @@ impl PermissionsContainer {
     pub fn create_child_permissions(
         &self,
         child_permissions_arg: ChildPermissionsArg,
-    ) -> Result<BlsPermissionsContainer, AnyError> {
-        self.0.create_child_permissions(child_permissions_arg)
+    ) -> Result<PermissionsContainer, AnyError> {
+        Ok(PermissionsContainer(self.0.create_child_permissions(child_permissions_arg)?))
     }
 
     pub fn allow_all(descriptor_parser: Arc<dyn PermissionDescriptorParser>) -> Self {
