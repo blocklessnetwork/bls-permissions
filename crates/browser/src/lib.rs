@@ -164,8 +164,8 @@ impl PermissionsContainer {
     }
 
     #[inline(always)]
-    pub fn query_run_all(&mut self) -> bool {
-        self.0.query_read_all()
+    pub fn query_run_all(&mut self, api_name: &str) -> bool {
+        self.0.query_run_all(api_name)
     }
 
     #[inline(always)]
