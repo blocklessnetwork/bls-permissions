@@ -46,7 +46,7 @@ class MyDialog {
             style.innerHTML = `
             dialog.promptDlg {
                 font-size:15px;
-                color:red;
+                color:green;
             }
             dialog.promptDlg .buttons {
                 margin-top: 5px;

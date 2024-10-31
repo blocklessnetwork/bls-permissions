@@ -43,6 +43,7 @@ class DefaultDialog {
             style.innerHTML = `
             dialog.promptDlg {
                 font-size:15px;
+                color:red;
             }
             dialog.promptDlg .buttons button {
                 margin-left: 3px;
