@@ -17,5 +17,4 @@ impl Html {
     pub fn italic(msg: &str) -> String {
         format!("<span style='font-style: italic'>{msg}</span>")
     }
-    
 }

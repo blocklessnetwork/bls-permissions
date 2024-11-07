@@ -16,8 +16,8 @@ use bls_permissions::bls_set_prompter;
 pub use bls_permissions::PermissionPrompter;
 pub use bls_permissions::PromptCallback;
 pub use bls_permissions::PromptResponse;
-pub use bls_permissions::PERMISSION_EMOJI;
 pub use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
+pub use bls_permissions::PERMISSION_EMOJI;
 
 /// Helper function to make control characters visible so users can see the underlying filename.
 fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
@@ -40,12 +40,16 @@ fn escape_control_characters(s: &str) -> std::borrow::Cow<str> {
 pub fn init_tty_prompter() {
     static TTYPROMPTER: Once = Once::new();
     TTYPROMPTER.call_once(|| {
-        bls_set_prompter(Box::new(TtyPrompter));
+        set_prompter(Box::new(TtyPrompter));
     });
 }
 
 pub fn set_prompt_callbacks(before_callback: PromptCallback, after_callback: PromptCallback) {
     bls_set_prompt_callbacks(before_callback, after_callback);
+}
+
+pub fn set_prompter(prompter: Box<dyn PermissionPrompter>) {
+    bls_set_prompter(prompter);
 }
 
 pub struct TtyPrompter;
@@ -62,7 +66,6 @@ fn clear_stdin(_stdin_lock: &mut StdinLock, _stderr_lock: &mut StderrLock) -> Re
         let mut raw_fd_set = MaybeUninit::<libc::fd_set>::uninit();
         libc::FD_ZERO(raw_fd_set.as_mut_ptr());
         libc::FD_SET(STDIN_FD, raw_fd_set.as_mut_ptr());
-
         loop {
             let r = libc::tcflush(STDIN_FD, libc::TCIFLUSH);
             if r != 0 {
@@ -311,7 +314,7 @@ impl PermissionPrompter for TtyPrompter {
 
             let mut input = String::new();
             let result = stdin_lock.read_line(&mut input);
-            let input = input.trim_end_matches(|c| c == '\r' || c == '\n');
+            let input = input.trim_end_matches(['\r', '\n']);
             if result.is_err() || input.len() != 1 {
                 break PromptResponse::Deny;
             };
@@ -377,9 +380,10 @@ impl PermissionPrompter for TtyPrompter {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use deno_core::parking_lot::Mutex;
     use once_cell::sync::Lazy;
+
+    use super::*;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering;
 
@@ -412,9 +416,5 @@ pub mod tests {
         pub fn set(&self, value: bool) {
             STUB_PROMPT_VALUE.store(value, Ordering::SeqCst);
         }
-    }
-
-    pub fn set_prompter(prompter: Box<dyn PermissionPrompter>) {
-        bls_set_prompter(prompter);
     }
 }

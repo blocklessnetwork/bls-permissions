@@ -46,7 +46,7 @@ class MyDialog {
             style.innerHTML = `
             dialog.promptDlg {
                 font-size:15px;
-                color:red;
+                color:green;
             }
             dialog.promptDlg .buttons {
                 margin-top: 5px;
@@ -107,4 +107,11 @@ blsCheckRead("/test.o", "permission").then((rs) =>{
     console.log(rs);
     let {code, msg} = rs;
     console.log(`code:${code} msg:${msg}` );
+
+    blsCheckRead("test.o", "permission").then((rs) =>{
+        console.log(rs);
+        let {code, msg} = rs;
+        console.log(`code:${code} msg:${msg}` );
+    });
 });
+

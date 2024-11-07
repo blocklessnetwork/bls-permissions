@@ -1,6 +1,8 @@
 use std::fmt::Write;
 use std::sync::Once;
 
+use super::html::Html;
+use crate::blsrt_get_input as get_input;
 use bls_permissions::bls_set_prompter;
 use bls_permissions::is_standalone;
 use bls_permissions::PermissionPrompter;
@@ -8,10 +10,8 @@ use bls_permissions::PromptResponse;
 use bls_permissions::MAX_PERMISSION_PROMPT_LENGTH;
 use bls_permissions::PERMISSION_EMOJI;
 use serde::Serialize;
-use crate::blsrt_get_input as get_input;
-use super::html::Html;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 const YIELD: &str = "cmd:yield";
 
 pub fn init_browser_prompter() {
@@ -64,22 +64,29 @@ impl PermissionPrompter for BrowserPrompter {
         };
         {
             let mut output = String::new();
-            write!(&mut output, "<div style='text-align: left;line-height:100%;'>").unwrap();
-            write!(&mut output, "┏ {} ", Html::span_color("yellow", PERMISSION_EMOJI)).unwrap();
+            write!(
+                &mut output,
+                "<div style='text-align: left;line-height:100%;'>"
+            )
+            .unwrap();
+            write!(
+                &mut output,
+                "┏ {} ",
+                Html::span_color("yellow", PERMISSION_EMOJI)
+            )
+            .unwrap();
             write!(&mut output, "{}", Html::bold("bls-runtime requests ")).unwrap();
             write!(&mut output, "{}", Html::bold(message)).unwrap();
             writeln!(&mut output, "{}", ".").unwrap();
             if let Some(api_name) = api_name.clone() {
-                writeln!(
-                    &mut output,
-                    "<br/>┠─ Requested by `{}` API.",
-                    api_name
-                )
-                .unwrap();
+                writeln!(&mut output, "<br/>┠─ Requested by `{}` API.", api_name).unwrap();
             }
             let msg = format!(
                 "Learn more at: {}",
-                Html::color_with_underline("cyan", &format!("https://blockless.network/docs/go--allow-{}", name))
+                Html::color_with_underline(
+                    "cyan",
+                    &format!("https://blockless.network/docs/go--allow-{}", name)
+                )
             );
             writeln!(&mut output, "<br/>┠─ {}", Html::italic(&msg)).unwrap();
             let msg = if is_standalone() {
@@ -91,19 +98,20 @@ impl PermissionPrompter for BrowserPrompter {
             write!(&mut output, "<br/>┗ {}", Html::bold("Allow?")).unwrap();
             write!(&mut output, " {opts}  ").unwrap();
             write!(&mut output, "</div>").unwrap();
-            let prompt_msg = serde_json::to_string(&PromptMsg{
+            let prompt_msg = serde_json::to_string(&PromptMsg {
                 api_name: api_name,
                 message,
                 dlg_html: &output,
                 name,
                 opts: &opts,
                 is_unary,
-            }).unwrap();
+            })
+            .unwrap();
             bls_prompt_dlg_info!("{prompt_msg}");
         }
         let resp = loop {
             let input = blsrt_get_input();
-            #[cfg(target_arch = "wasm32")]
+            #[cfg(target_family = "wasm")]
             if input == YIELD {
                 return PromptResponse::Yield;
             }
@@ -119,14 +127,14 @@ impl PermissionPrompter for BrowserPrompter {
                     blsrt_show_tips!(fail: "❌ {msg}");
                     break PromptResponse::Deny;
                 }
-                'A' | 'a'  if is_unary => {
+                'A' | 'a' if is_unary => {
                     let msg = format!("Granted all {name} access.");
                     blsrt_show_tips!(success: "✅ {msg}");
                     break PromptResponse::AllowAll;
                 }
                 _ => {
                     blsrt_show_tips!(fail:"┗ Unrecognized option. Allow? {opts} > ");
-                    #[cfg(target_arch = "wasm32")]
+                    #[cfg(target_family = "wasm")]
                     break PromptResponse::Yield;
                 }
             }
