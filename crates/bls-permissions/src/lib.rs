@@ -2304,7 +2304,7 @@ impl From<bool> for AllowPartial {
 /// to send permissions to a new thread.
 #[derive(Clone, Debug)]
 pub struct BlsPermissionsContainer {
-    descriptor_parser: Arc<dyn PermissionDescriptorParser>,
+    pub descriptor_parser: Arc<dyn PermissionDescriptorParser>,
     pub inner: Arc<Mutex<Permissions>>,
 }
 
